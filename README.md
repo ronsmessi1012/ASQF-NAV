@@ -2,7 +2,7 @@
 
 > **Adaptive Spectral Quantum Filtering for Multi-Agent Navigation with Artificial Potential Fields, Dynamic Collision Avoidance, and Quantum Spectral Transforms**
 
-**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, the **Adaptive Spectral Quantum Filter (ASQF)**, and **Spatial Field Reconstruction** for collision-free navigation in complex environments.
+**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, the **Adaptive Spectral Quantum Filter (ASQF)**, and **Quantum-Guided Continuous Motion Control** for collision-free navigation in complex environments.
 
 ---
 
@@ -11,25 +11,27 @@
 ```text
 ASQF/
 ├── environment/
-│   └── field.py              # Artificial Potential Field (goal attraction, obstacle & dynamic agent repulsion)
+│   └── field.py                  # Artificial Potential Field (goal attraction, obstacle & dynamic agent repulsion)
 ├── navigation/
-│   └── controller.py         # Multi-agent continuous motion controller with early avoidance & hard safety projection
+│   ├── controller.py             # Classical multi-agent continuous motion controller with early avoidance
+│   └── quantum_controller.py     # Quantum-driven motion controller operating on reconstructed quantum fields
 ├── quantum/
-│   ├── adaptive_filter.py    # Adaptive Spectral Quantum Filter (ASQF) low-pass bandwidth control
-│   ├── amplitude_encoding.py # 8-qubit quantum amplitude state preparation for 16x16 potential fields
-│   ├── qft.py                # Quantum Fourier Transform (QFT) & Inverse QFT (IQFT) circuit implementations
-│   ├── reconstruction.py     # Inverse QFT state inversion, 2D field reconstruction, and relative L2 error analysis
-│   ├── spectral_analysis.py  # Spectral power, frequency metrics, and spatial complexity analysis
-│   └── test_amplitude.py     # Verification script for quantum amplitude encoding
-├── experiment/               # Benchmark scenarios, evaluation suites, and parameter sweeps
-├── results/                  # Output metrics, performance logs, and simulation artifacts
-├── visualization/            # Matplotlib plotting routines, circuit & trajectory renderers
-├── main.py                   # Multi-agent dynamic closed-loop simulation & trajectory visualizer
-├── test_amplitude.py         # Quantum statevector encoding test runner
-├── test_qft.py               # Step 4: QFT, spectral complexity, adaptive filtering & reconstruction test runner
-├── requirements.txt          # Python dependencies
-├── .gitignore                # Git exclusion rules
-└── README.md                 # Project documentation
+│   ├── adaptive_filter.py        # Adaptive Spectral Quantum Filter (ASQF) low-pass bandwidth control
+│   ├── amplitude_encoding.py     # 8-qubit quantum amplitude state preparation for 16x16 potential fields
+│   ├── qft.py                    # Quantum Fourier Transform (QFT) & Inverse QFT (IQFT) circuit implementations
+│   ├── reconstruction.py         # Inverse QFT state inversion, 2D field reconstruction, and relative L2 error analysis
+│   ├── spectral_analysis.py      # Spectral power, frequency metrics, and spatial complexity analysis
+│   └── test_amplitude.py         # Verification script for quantum amplitude encoding
+├── experiment/                   # Benchmark scenarios, evaluation suites, and parameter sweeps
+├── results/                      # Output metrics, performance logs, and simulation artifacts
+├── visualization/                # Matplotlib plotting routines, circuit & trajectory renderers
+├── main.py                       # Multi-agent dynamic closed-loop simulation & trajectory visualizer
+├── test_amplitude.py             # Quantum statevector encoding test runner
+├── test_qft.py                   # Step 4: QFT, spectral complexity, adaptive filtering & reconstruction test runner
+├── test_quantum_navigation.py    # Step 8: Quantum navigation pipeline & velocity generation test runner
+├── requirements.txt              # Python dependencies
+├── .gitignore                    # Git exclusion rules
+└── README.md                     # Project documentation
 ```
 
 ### Module Overview
@@ -39,11 +41,14 @@ ASQF/
   - Repulsive potential pushing agents away from static obstacles within an influence radius.
   - Inter-agent dynamic repulsive potential treating other moving robots as dynamic obstacles.
   - Distance clamping ($d^* = \max(d, 0.5)$) to eliminate numerical division-by-zero singularities.
-- **`navigation/controller.py`**: Closed-loop multi-agent continuous motion planning and velocity generation.
-  - **Bilinear Field Interpolation**: Evaluates discrete grid potential and gradients smoothly at continuous floating-point robot positions.
-  - **Gradient-Based Steering**: Blends normalized negative potential gradients with direct goal headings.
+- **`navigation/controller.py`**: Classical continuous motion planning and velocity generation.
+  - **Bilinear Field Interpolation**: Evaluates discrete grid potential and gradients smoothly at continuous floating-point coordinates.
   - **Early Avoidance Steering** ($d < 1.5$): Smoothly increases outward separation velocity as robots approach each other.
-  - **Hard Safety Projection** ($d \le 1.05$): Orthogonally projects out any velocity component pointing toward another robot and adds a radial separation force.
+  - **Hard Safety Projection** ($d \le 1.05$): Orthogonally projects out any velocity component pointing toward another robot.
+- **`navigation/quantum_controller.py`**: Bridges quantum processing with continuous robot steering.
+  - Executes the full quantum pipeline: Amplitude Encoding $\rightarrow$ QFT $\rightarrow$ Spectral Complexity $\rightarrow$ ASQF Filtering $\rightarrow$ IQFT Reconstruction.
+  - Bilinearly interpolates continuous spatial gradients directly from the reconstructed quantum field.
+  - Computes unit-normalized velocity commands steering agents toward goals through filtered potential valleys.
 - **`quantum/adaptive_filter.py`**: Implements the **Adaptive Spectral Quantum Filter (ASQF)**. Inversely scales the filter bandwidth based on environmental spectral complexity, selectively suppresses high-frequency potential turbulence, and renormalizes the quantum state.
 - **`quantum/amplitude_encoding.py`**: Encodes the entire $16 \times 16$ ($N = 256$) scalar field into an $n = 8$ qubit quantum statevector using Qiskit's `initialize()` operator, with exact fidelity verification.
 - **`quantum/qft.py`**: Implements the Quantum Fourier Transform (QFT) and Inverse QFT (IQFT) on $n$ qubits using Hadamard gates, controlled phase rotations ($CP$), and SWAP inversion cascades.
@@ -82,27 +87,26 @@ $$F_{\text{total}}(x, y) = F_{\text{goal}}(x, y) + F_{\text{obstacle}}(x, y) + F
 
 ---
 
-## 🧭 Multi-Agent Motion Controller & Safety Layers
+## 🧭 Navigation & Control Architecture
 
-The robot controller operates in continuous coordinate space $(x, y) \in [0, 15] \times [0, 15]$:
+### 1. Classical Motion Planning & Dual-Layer Safety
+Operates in continuous coordinate space $(x, y) \in [0, 15] \times [0, 15]$:
+- **Continuous Gradient Sampling:** Spatial gradients $(\nabla_x F, \nabla_y F)$ are computed from the discrete field via central differences and bilinearly interpolated at continuous robot coordinates:
+  $$\nabla F(p) = \text{BilinearInterpolate}\left(\nabla F_{\text{grid}}, p_x, p_y\right)$$
+- **Base Velocity Blending:**
+  $$v_{\text{base}} = 0.65 \cdot \left(-\frac{\nabla F}{\|\nabla F\|}\right) + 0.35 \cdot \hat{d}_{\text{goal}}$$
+- **Dual-Layer Inter-Agent Collision Avoidance:**
+  - **Layer 1: Early Avoidance Steering** ($d_{\text{safe}} < d < d_{\text{avoid}}$, where $d_{\text{avoid}} = 1.5, d_{\text{safe}} = 1.05$):
+    $$w_{\text{avoid}} = \frac{d_{\text{avoid}} - d}{d_{\text{avoid}} - d_{\text{safe}}}, \quad v \leftarrow v + w_{\text{avoid}} \cdot \hat{r}$$
+  - **Layer 2: Hard Safety Projection** ($d \le d_{\text{safe}}$):
+    If $v \cdot \hat{r} < 0$: $v \leftarrow v - (v \cdot \hat{r}) \hat{r} + (d_{\text{safe}} - d) \cdot \hat{r}$.
 
-1. **Continuous Gradient Sampling:**
-   Spatial gradients $(\nabla_x F, \nabla_y F)$ are computed from the discrete field via central differences and bilinearly interpolated at continuous robot coordinates:
-   $$\nabla F(p) = \text{BilinearInterpolate}\left(\nabla F_{\text{grid}}, p_x, p_y\right)$$
-
-2. **Base Velocity Blending:**
-   $$v_{\text{base}} = 0.65 \cdot \left(-\frac{\nabla F}{\|\nabla F\|}\right) + 0.35 \cdot \hat{d}_{\text{goal}}$$
-
-3. **Dual-Layer Inter-Agent Collision Avoidance:**
-   For relative position vector $r = p_{\text{self}} - p_{\text{other}}$ and separation $d = \|r\|$:
-   - **Layer 1: Early Avoidance Steering** ($d_{\text{safe}} < d < d_{\text{avoid}}$, where $d_{\text{avoid}} = 1.5, d_{\text{safe}} = 1.05$):
-     $$w_{\text{avoid}} = \frac{d_{\text{avoid}} - d}{d_{\text{avoid}} - d_{\text{safe}}}, \quad v \leftarrow v + w_{\text{avoid}} \cdot \hat{r}$$
-   - **Layer 2: Hard Safety Projection** ($d \le d_{\text{safe}}$):
-     If $v \cdot \hat{r} < 0$ (moving toward the other robot):
-     $$v \leftarrow v - (v \cdot \hat{r}) \hat{r} + (d_{\text{safe}} - d) \cdot \hat{r}$$
-
-4. **Integration & Termination:**
-   Position updates follow $p_{t+1} = p_t + \Delta t \cdot v$ with $\Delta t = 0.20$ and $v_{\text{max}} = 1.0$. The agent terminates when $\|p - g\| \le 0.45$.
+### 2. Quantum-Guided Motion Control
+In [navigation/quantum_controller.py](file:///Users/ronnie/Documents/ASQF/navigation/quantum_controller.py), continuous velocity planning is executed directly on the **quantum-filtered reconstructed field** $F_{\text{quantum}}$:
+- High-frequency potential ripples that cause agent entrapment in local minima are filtered by the ASQF low-pass spectral mask.
+- The quantum velocity $v_{\text{quantum}}$ combines the negative gradient of the filtered field with direct goal guidance:
+  $$v_{\text{quantum}} = v_{\text{max}} \cdot \frac{0.65 \cdot \hat{v}_{-\nabla F_{\text{quantum}}} + 0.35 \cdot \hat{d}_{\text{goal}}}{\|0.65 \cdot \hat{v}_{-\nabla F_{\text{quantum}}} + 0.35 \cdot \hat{d}_{\text{goal}}\|}$$
+- Produces a smooth, globally-consistent heading toward the goal while preserving obstacle repulsion.
 
 ---
 
@@ -128,6 +132,9 @@ Inverse QFT Circuit (IQFT |ψ̃_filtered⟩)
        │
        ▼
 Filtered Classical 2D Potential Field (L2 Relative Error = 6.45%)
+       │
+       ▼
+Quantum Velocity Planning (v = [0.512, 0.859])
 ```
 
 ### 1. 8-Qubit Amplitude Encoding
@@ -342,6 +349,41 @@ Minimum spectral power: 2.2118479466521852e-07
 
 ---
 
+### 4. Step 8: Quantum Navigation Pipeline & Velocity Planning
+
+Test continuous velocity planning computed on the quantum-filtered potential field:
+
+```bash
+python3.11 test_quantum_navigation.py
+```
+
+#### Console Output
+
+```text
+========== STEP 8: QUANTUM NAVIGATION ==========
+Original field shape: (16, 16)
+Original field norm: 2067.30422476496
+Maximum imaginary component: 0.012136756891117855
+
+---------- Quantum Processing ----------
+Spectral complexity: 0.011308812510864075
+Adaptive bandwidth: 0.744345593744568
+Retained fraction: 0.74609375
+Original normalized norm: 0.9999999999999999
+Reconstructed state norm: 0.9999999999999996
+Reconstructed field shape: (16, 16)
+Reconstructed field minimum: -0.0002902245456402888
+Reconstructed field maximum: 0.1569685404838594
+
+---------- Navigation ----------
+Robot position: [2. 2.]
+Goal: [13. 13.]
+Quantum velocity: [0.51153638 0.85926162]
+Velocity magnitude: 1.0
+```
+
+---
+
 ## 🧪 Roadmap
 
 - [x] Classical 2D Artificial Potential Field (APF) with obstacle and dynamic agent repulsion (`environment/field.py`).
@@ -353,8 +395,9 @@ Minimum spectral power: 2.2118479466521852e-07
 - [x] Quantum spectral power distribution and spatial complexity analysis (`quantum/spectral_analysis.py`).
 - [x] Adaptive Spectral Quantum Filter (ASQF) with complexity-driven bandwidth scaling (`quantum/adaptive_filter.py`).
 - [x] Inverse QFT quantum field reconstruction and relative $L_2$ error quantification (`quantum/reconstruction.py`).
-- [ ] Quantum Variational Circuit (VQC) / Parameterized Quantum Policy optimization in `quantum/`.
-- [ ] Multi-scenario benchmark suites and automated metric logging in `experiment/` & `results/`.
+- [x] Quantum-guided continuous motion controller and velocity planning (`navigation/quantum_controller.py`).
+- [x] Step 8: Quantum navigation pipeline validation (`test_quantum_navigation.py`).
+- [ ] Multi-agent quantum closed-loop rollout benchmarking against classical APF baseline in `experiment/`.
 
 ---
 
