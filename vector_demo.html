@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Vector Demo</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            cursor: crosshair;
+        }
+
+        .info {
+            margin-top: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>Interactive Vector</h2>
+
+<canvas id="canvas" width="600" height="500"></canvas>
+
+<div class="info">
+    Vector:
+    <span id="vector">(0, 0)</span>
+    <br>
+    Magnitude:
+    <span id="magnitude">0</span>
+    <br>
+    Angle:
+    <span id="angle">0°</span>
+</div>
+
+<script>
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+
+let vector = {
+    x: 120,
+    y: -80
+};
+
+let dragging = false;
+
+
+// --------------------------------------------------
+// DRAW EVERYTHING
+// --------------------------------------------------
+
+function draw() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    // -------------------------------
+    // GRID
+    // -------------------------------
+
+    ctx.strokeStyle = "#eeeeee";
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x <= canvas.width; x += 25) {
+
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+
+    for (let y = 0; y <= canvas.height; y += 25) {
+
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+
+
+    // -------------------------------
+    // AXES
+    // -------------------------------
+
+    ctx.strokeStyle = "#333333";
+    ctx.lineWidth = 2;
+
+    // X axis
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(canvas.width, centerY);
+    ctx.stroke();
+
+    // Y axis
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, canvas.height);
+    ctx.stroke();
+
+
+    // -------------------------------
+    // VECTOR
+    // -------------------------------
+
+    const endX = centerX + vector.x;
+    const endY = centerY + vector.y;
+
+    ctx.strokeStyle = "blue";
+    ctx.fillStyle = "blue";
+    ctx.lineWidth = 4;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        centerX,
+        centerY
+    );
+
+    ctx.lineTo(
+        endX,
+        endY
+    );
+
+    ctx.stroke();
+
+
+    // -------------------------------
+    // ARROW HEAD
+    // -------------------------------
+
+    const angle = Math.atan2(
+        endY - centerY,
+        endX - centerX
+    );
+
+    const arrowSize = 12;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        endX,
+        endY
+    );
+
+    ctx.lineTo(
+        endX - arrowSize * Math.cos(angle - Math.PI / 6),
+        endY - arrowSize * Math.sin(angle - Math.PI / 6)
+    );
+
+    ctx.lineTo(
+        endX - arrowSize * Math.cos(angle + Math.PI / 6),
+        endY - arrowSize * Math.sin(angle + Math.PI / 6)
+    );
+
+    ctx.closePath();
+
+    ctx.fill();
+
+
+    // -------------------------------
+    // VECTOR LABEL
+    // -------------------------------
+
+    ctx.fillStyle = "black";
+    ctx.font = "16px Arial";
+
+    ctx.fillText(
+        `(${vector.x.toFixed(0)}, ${(-vector.y).toFixed(0)})`,
+        endX + 10,
+        endY - 10
+    );
+
+
+    // -------------------------------
+    // NUMERICAL VALUES
+    // -------------------------------
+
+    const magnitude = Math.sqrt(
+        vector.x ** 2 +
+        vector.y ** 2
+    );
+
+    const angleDegrees =
+        Math.atan2(
+            -vector.y,
+            vector.x
+        ) * 180 / Math.PI;
+
+
+    document.getElementById(
+        "vector"
+    ).textContent =
+        `(${vector.x.toFixed(2)}, ${(-vector.y).toFixed(2)})`;
+
+    document.getElementById(
+        "magnitude"
+    ).textContent =
+        magnitude.toFixed(2);
+
+    document.getElementById(
+        "angle"
+    ).textContent =
+        angleDegrees.toFixed(2) + "°";
+}
+
+
+// --------------------------------------------------
+// MOUSE INTERACTION
+// --------------------------------------------------
+
+canvas.addEventListener(
+    "mousedown",
+    function(event) {
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+        const mouseX =
+            event.clientX - rect.left;
+
+        const mouseY =
+            event.clientY - rect.top;
+
+        const endX =
+            centerX + vector.x;
+
+        const endY =
+            centerY + vector.y;
+
+        const distance =
+            Math.sqrt(
+                (mouseX - endX) ** 2 +
+                (mouseY - endY) ** 2
+            );
+
+        if (distance < 20) {
+            dragging = true;
+        }
+    }
+);
+
+
+canvas.addEventListener(
+    "mousemove",
+    function(event) {
+
+        if (!dragging) {
+            return;
+        }
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+        const mouseX =
+            event.clientX - rect.left;
+
+        const mouseY =
+            event.clientY - rect.top;
+
+        vector.x =
+            mouseX - centerX;
+
+        vector.y =
+            mouseY - centerY;
+
+        draw();
+    }
+);
+
+
+canvas.addEventListener(
+    "mouseup",
+    function() {
+        dragging = false;
+    }
+);
+
+
+canvas.addEventListener(
+    "mouseleave",
+    function() {
+        dragging = false;
+    }
+);
+
+
+// Initial rendering
+draw();
+
+</script>
+
+</body>
+</html>
