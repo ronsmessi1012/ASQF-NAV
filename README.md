@@ -1,8 +1,8 @@
 # ASQF-NAV
 
-> **Autonomous Multi-Agent Navigation Framework with Potential Fields, Dynamic Collision Avoidance, and Quantum Spectral Transforms**
+> **Adaptive Spectral Quantum Filtering for Multi-Agent Navigation with Artificial Potential Fields, Dynamic Collision Avoidance, and Quantum Spectral Transforms**
 
-**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) with **Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, and **Quantum Spectral Complexity Analysis** for collision-free navigation in complex environments.
+**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, and the **Adaptive Spectral Quantum Filter (ASQF)** for collision-free navigation in complex environments.
 
 ---
 
@@ -15,6 +15,7 @@ ASQF/
 ├── navigation/
 │   └── controller.py         # Multi-agent continuous motion controller with early avoidance & hard safety projection
 ├── quantum/
+│   ├── adaptive_filter.py    # Adaptive Spectral Quantum Filter (ASQF) low-pass bandwidth control
 │   ├── amplitude_encoding.py # 8-qubit quantum amplitude state preparation for 16x16 potential fields
 │   ├── qft.py                # Quantum Fourier Transform (QFT) & Inverse QFT (IQFT) circuit implementations
 │   ├── spectral_analysis.py  # Spectral power, frequency metrics, and spatial complexity analysis
@@ -24,7 +25,7 @@ ASQF/
 ├── visualization/            # Matplotlib plotting routines, circuit & trajectory renderers
 ├── main.py                   # Multi-agent dynamic closed-loop simulation & trajectory visualizer
 ├── test_amplitude.py         # Quantum statevector encoding test runner
-├── test_qft.py               # Step 4: QFT & IQFT validation & spectral decomposition test runner
+├── test_qft.py               # Step 4: QFT, spectral complexity & adaptive filtering test runner
 ├── requirements.txt          # Python dependencies
 ├── .gitignore                # Git exclusion rules
 └── README.md                 # Project documentation
@@ -42,9 +43,10 @@ ASQF/
   - **Gradient-Based Steering**: Blends normalized negative potential gradients with direct goal headings.
   - **Early Avoidance Steering** ($d < 1.5$): Smoothly increases outward separation velocity as robots approach each other.
   - **Hard Safety Projection** ($d \le 1.05$): Orthogonally projects out any velocity component pointing toward another robot and adds a radial separation force.
+- **`quantum/adaptive_filter.py`**: Implements the **Adaptive Spectral Quantum Filter (ASQF)**. Inversely scales the filter bandwidth based on environmental spectral complexity, selectively suppresses high-frequency potential turbulence, and renormalizes the quantum state.
 - **`quantum/amplitude_encoding.py`**: Encodes the entire $16 \times 16$ ($N = 256$) scalar field into an $n = 8$ qubit quantum statevector using Qiskit's `initialize()` operator, with exact fidelity verification.
 - **`quantum/qft.py`**: Implements the Quantum Fourier Transform (QFT) and Inverse QFT (IQFT) on $n$ qubits using Hadamard gates, controlled phase rotations ($CP$), and SWAP inversion cascades.
-- **`quantum/spectral_analysis.py`**: Analyzes the QFT frequency spectrum to compute spectral power distribution and **Spectral Complexity** ($\mathcal{C}_{\text{spectral}}$), quantifying spatial clutter and obstacle density directly in the frequency domain.
+- **`quantum/spectral_analysis.py`**: Analyzes the QFT frequency spectrum to compute spectral power distributions and **Spectral Complexity** ($\mathcal{C}_{\text{spectral}}$), quantifying spatial clutter directly in the quantum frequency domain.
 - **`experiment/`**: Automated test harnesses to evaluate path efficiency, collision rates, and computational scaling.
 - **`results/`**: Output directory for storing trajectory benchmarks, CSV metric data, and generated figures.
 - **`visualization/`**: Plotting utilities for field heatmaps, multi-agent trajectories, and quantum circuit layouts.
@@ -102,7 +104,7 @@ The robot controller operates in continuous coordinate space $(x, y) \in [0, 15]
 
 ---
 
-## ⚛️ Quantum State Preparation & Spectral Analysis
+## ⚛️ Quantum State Preparation, QFT & Adaptive Filtering
 
 ### 1. 8-Qubit Amplitude Encoding
 To map the continuous $16 \times 16$ spatial field ($N = 256$) into quantum state space:
@@ -142,6 +144,20 @@ $$\mathcal{C}_{\text{spectral}} = \frac{\sum_{|f_k| > 64} P(k)}{\sum_{k=0}^{255}
   - Smooth attractor basins concentrate $\approx 98.87\%$ of spectral power in low-frequency harmonics.
   - Localized obstacle boundaries, narrow passages, and inter-agent boundaries manifest in the high-frequency band ($\approx 1.13\%$).
   - Provides a global, quantum-evaluable complexity index to quantify navigation difficulty and clutter density.
+
+### 4. Adaptive Spectral Quantum Filter (ASQF)
+The core **ASQF** algorithm dynamically adapts a spectral low-pass filter to environmental complexity:
+- **Adaptive Bandwidth ($B$):**
+  $$B(\mathcal{C}) = B_{\text{min}} + (B_{\text{max}} - B_{\text{min}}) \cdot (1 - \mathcal{C})$$
+  *(Default parameters: $B_{\text{min}} = 0.25$, $B_{\text{max}} = 0.75$)*
+- **Cutoff Frequency ($f_{\text{cutoff}}$):**
+  $$f_{\text{cutoff}} = \left(\frac{N}{2}\right) \cdot B(\mathcal{C})$$
+- **Spectral Masking & Renormalization:**
+  $$\tilde{c}_k^{\text{filtered}} = \begin{cases} \frac{\tilde{c}_k}{\mathcal{N}} & \text{if } |f_k| \le f_{\text{cutoff}} \\ 0 & \text{otherwise} \end{cases}$$
+  where $\mathcal{N} = \sqrt{\sum_{|f_k| \le f_{\text{cutoff}}} |\tilde{c}_k|^2}$ guarantees that the filtered quantum state strictly respects the quantum normalization postulate ($\|\tilde{\psi}_{\text{filtered}}\|_2 = 1.0$).
+- **Filtering Response:**
+  - In open/smooth regions ($\mathcal{C} = 0.0113$), the filter retains $B = 0.744$ bandwidth ($f_{\text{cutoff}} = 95.28$, retaining $191/256 = 74.61\%$ of spectral components).
+  - In high-clutter/dense regions ($\mathcal{C} \to 1.0$), the filter automatically narrows down to $B = 0.25$, filtering high-frequency field ripples that cause local agent traps.
 
 ---
 
@@ -241,9 +257,9 @@ Normalization error: 1.1102230246251565e-16
 
 ---
 
-### 3. QFT Validation & Spectral Complexity Analysis
+### 3. QFT, Spectral Complexity & Adaptive Filter Validation
 
-Run the Quantum Fourier Transform validation and spectral complexity evaluation:
+Run the combined Quantum Fourier Transform, spectral complexity evaluation, and adaptive spectral filtering pipeline:
 
 ```bash
 python3.11 test_qft.py
@@ -258,6 +274,16 @@ Total spectral power: 0.9999999999999982
 High-frequency spectral power: 0.011308812510864054
 Spectral complexity: 0.011308812510864075
 Spectral complexity (%): 1.1308812510864075
+
+========== ADAPTIVE FILTER ==========
+Spectral complexity: 0.011308812510864075
+Spectral complexity (%): 1.1308812510864075
+Adaptive bandwidth: 0.744345593744568
+Cutoff frequency: 95.2762359993047
+Retained spectral components: 191
+Total spectral components: 256
+Retained fraction: 0.74609375
+Filtered spectrum norm: 1.0000000000000004
 
 ========== STEP 4: QFT VALIDATION ==========
 Number of qubits: 8
@@ -282,6 +308,7 @@ Minimum spectral power: 2.2118479466521852e-07
 - [x] 8-qubit quantum amplitude encoding of $16 \times 16$ spatial fields (`quantum/amplitude_encoding.py`).
 - [x] Quantum Fourier Transform (QFT & IQFT) with unitary spectral verification (`quantum/qft.py`).
 - [x] Quantum spectral power distribution and spatial complexity analysis (`quantum/spectral_analysis.py`).
+- [x] Adaptive Spectral Quantum Filter (ASQF) with complexity-driven bandwidth scaling (`quantum/adaptive_filter.py`).
 - [ ] Quantum Variational Circuit (VQC) / Parameterized Quantum Policy optimization in `quantum/`.
 - [ ] Multi-scenario benchmark suites and automated metric logging in `experiment/` & `results/`.
 

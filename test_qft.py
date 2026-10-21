@@ -5,6 +5,7 @@ from quantum.amplitude_encoding import encode_field
 from quantum.qft import apply_qft, apply_inverse_qft
 from qiskit.quantum_info import Statevector
 from quantum.spectral_analysis import analyze_spectrum
+from quantum.adaptive_filter import adaptive_spectral_filter
 
 # --------------------------------------------------
 # Environment
@@ -123,6 +124,23 @@ spectral_power = np.abs(spectrum) ** 2
 analysis = analyze_spectrum(
     spectrum
 )
+
+filtered_spectrum, bandwidth, cutoff, retained_fraction, mask = (
+    adaptive_spectral_filter(
+        spectrum,
+        analysis["complexity"]
+    )
+)
+
+print("\n========== ADAPTIVE FILTER ==========")
+print("Spectral complexity:", analysis["complexity"])
+print("Spectral complexity (%):", analysis["complexity"] * 100)
+print("Adaptive bandwidth:", bandwidth)
+print("Cutoff frequency:", cutoff)
+print("Retained spectral components:", np.sum(mask))
+print("Total spectral components:", len(spectrum))
+print("Retained fraction:", retained_fraction)
+print("Filtered spectrum norm:", np.linalg.norm(filtered_spectrum))
 
 
 # --------------------------------------------------
