@@ -2,7 +2,7 @@
 
 > **Adaptive Spectral Quantum Filtering for Multi-Agent Navigation with Artificial Potential Fields, Dynamic Collision Avoidance, and Quantum Spectral Transforms**
 
-**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, and the **Adaptive Spectral Quantum Filter (ASQF)** for collision-free navigation in complex environments.
+**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, the **Adaptive Spectral Quantum Filter (ASQF)**, and **Spatial Field Reconstruction** for collision-free navigation in complex environments.
 
 ---
 
@@ -18,6 +18,7 @@ ASQF/
 │   ├── adaptive_filter.py    # Adaptive Spectral Quantum Filter (ASQF) low-pass bandwidth control
 │   ├── amplitude_encoding.py # 8-qubit quantum amplitude state preparation for 16x16 potential fields
 │   ├── qft.py                # Quantum Fourier Transform (QFT) & Inverse QFT (IQFT) circuit implementations
+│   ├── reconstruction.py     # Inverse QFT state inversion, 2D field reconstruction, and relative L2 error analysis
 │   ├── spectral_analysis.py  # Spectral power, frequency metrics, and spatial complexity analysis
 │   └── test_amplitude.py     # Verification script for quantum amplitude encoding
 ├── experiment/               # Benchmark scenarios, evaluation suites, and parameter sweeps
@@ -25,7 +26,7 @@ ASQF/
 ├── visualization/            # Matplotlib plotting routines, circuit & trajectory renderers
 ├── main.py                   # Multi-agent dynamic closed-loop simulation & trajectory visualizer
 ├── test_amplitude.py         # Quantum statevector encoding test runner
-├── test_qft.py               # Step 4: QFT, spectral complexity & adaptive filtering test runner
+├── test_qft.py               # Step 4: QFT, spectral complexity, adaptive filtering & reconstruction test runner
 ├── requirements.txt          # Python dependencies
 ├── .gitignore                # Git exclusion rules
 └── README.md                 # Project documentation
@@ -46,6 +47,7 @@ ASQF/
 - **`quantum/adaptive_filter.py`**: Implements the **Adaptive Spectral Quantum Filter (ASQF)**. Inversely scales the filter bandwidth based on environmental spectral complexity, selectively suppresses high-frequency potential turbulence, and renormalizes the quantum state.
 - **`quantum/amplitude_encoding.py`**: Encodes the entire $16 \times 16$ ($N = 256$) scalar field into an $n = 8$ qubit quantum statevector using Qiskit's `initialize()` operator, with exact fidelity verification.
 - **`quantum/qft.py`**: Implements the Quantum Fourier Transform (QFT) and Inverse QFT (IQFT) on $n$ qubits using Hadamard gates, controlled phase rotations ($CP$), and SWAP inversion cascades.
+- **`quantum/reconstruction.py`**: Inverts filtered quantum statevectors back into spatial coordinates using Inverse QFT circuits, computes the real-valued $16 \times 16$ field, verifies residual imaginary bounds, and quantifies relative $L_2$ error.
 - **`quantum/spectral_analysis.py`**: Analyzes the QFT frequency spectrum to compute spectral power distributions and **Spectral Complexity** ($\mathcal{C}_{\text{spectral}}$), quantifying spatial clutter directly in the quantum frequency domain.
 - **`experiment/`**: Automated test harnesses to evaluate path efficiency, collision rates, and computational scaling.
 - **`results/`**: Output directory for storing trajectory benchmarks, CSV metric data, and generated figures.
@@ -104,7 +106,29 @@ The robot controller operates in continuous coordinate space $(x, y) \in [0, 15]
 
 ---
 
-## ⚛️ Quantum State Preparation, QFT & Adaptive Filtering
+## ⚛️ Quantum State Preparation, QFT & Adaptive Filtering Pipeline
+
+```text
+Classical 2D Field (16x16)
+       │
+       ▼
+8-Qubit Amplitude Encoding (|ψ⟩, 256 amplitudes)
+       │
+       ▼
+Quantum Fourier Transform (QFT |ψ⟩ = |ψ̃⟩)
+       │
+       ▼
+Spectral Complexity Analysis (C_spectral = 1.13%)
+       │
+       ▼
+Adaptive Spectral Quantum Filter (ASQF Bandwidth = 74.4%)
+       │
+       ▼
+Inverse QFT Circuit (IQFT |ψ̃_filtered⟩)
+       │
+       ▼
+Filtered Classical 2D Potential Field (L2 Relative Error = 6.45%)
+```
 
 ### 1. 8-Qubit Amplitude Encoding
 To map the continuous $16 \times 16$ spatial field ($N = 256$) into quantum state space:
@@ -158,6 +182,14 @@ The core **ASQF** algorithm dynamically adapts a spectral low-pass filter to env
 - **Filtering Response:**
   - In open/smooth regions ($\mathcal{C} = 0.0113$), the filter retains $B = 0.744$ bandwidth ($f_{\text{cutoff}} = 95.28$, retaining $191/256 = 74.61\%$ of spectral components).
   - In high-clutter/dense regions ($\mathcal{C} \to 1.0$), the filter automatically narrows down to $B = 0.25$, filtering high-frequency field ripples that cause local agent traps.
+
+### 5. Field Reconstruction & Relative $L_2$ Error
+Using [quantum/reconstruction.py](file:///Users/ronnie/Documents/ASQF/quantum/reconstruction.py), the filtered state is transformed back to physical space:
+- **State Inversion**: $|\psi_{\text{recon}}\rangle = \text{IQFT} |\tilde{\psi}_{\text{filtered}}\rangle$.
+- **Physical Verification**: Residual imaginary components are strictly bounded ($\max |\text{Im}(\psi_{\text{recon}})| = 0.0121 \ll 1$), confirming a physical, real potential field.
+- **Relative $L_2$ Error**:
+  $$\epsilon_{\text{rel}} = \frac{\| c_{\text{original}} - c_{\text{filtered}} \|_2}{\| c_{\text{original}} \|_2} = \mathbf{6.45\%}$$
+  This indicates that ASQF retains **$93.55\%$** of the global navigation landscape while eliminating high-frequency potential irregularities.
 
 ---
 
@@ -257,9 +289,9 @@ Normalization error: 1.1102230246251565e-16
 
 ---
 
-### 3. QFT, Spectral Complexity & Adaptive Filter Validation
+### 3. End-to-End Quantum Pipeline Validation (QFT, ASQF & Reconstruction)
 
-Run the combined Quantum Fourier Transform, spectral complexity evaluation, and adaptive spectral filtering pipeline:
+Run the complete pipeline: Amplitude Encoding $\rightarrow$ QFT $\rightarrow$ Spectral Complexity $\rightarrow$ ASQF Filtering $\rightarrow$ IQFT Reconstruction:
 
 ```bash
 python3.11 test_qft.py
@@ -274,6 +306,17 @@ Total spectral power: 0.9999999999999982
 High-frequency spectral power: 0.011308812510864054
 Spectral complexity: 0.011308812510864075
 Spectral complexity (%): 1.1308812510864075
+Maximum imaginary component: 0.012136756891117855
+
+========== RECONSTRUCTION ==========
+Original field shape: (16, 16)
+Reconstructed field shape: (16, 16)
+Reconstructed state norm: 0.9999999999999996
+Minimum reconstructed value: -0.0002902245456402888
+Maximum reconstructed value: 0.1569685404838594
+Mean reconstructed value: 0.05064990704727313
+Relative reconstruction error: 0.06454817754849157
+Relative reconstruction error (%): 6.454817754849157
 
 ========== ADAPTIVE FILTER ==========
 Spectral complexity: 0.011308812510864075
@@ -309,6 +352,7 @@ Minimum spectral power: 2.2118479466521852e-07
 - [x] Quantum Fourier Transform (QFT & IQFT) with unitary spectral verification (`quantum/qft.py`).
 - [x] Quantum spectral power distribution and spatial complexity analysis (`quantum/spectral_analysis.py`).
 - [x] Adaptive Spectral Quantum Filter (ASQF) with complexity-driven bandwidth scaling (`quantum/adaptive_filter.py`).
+- [x] Inverse QFT quantum field reconstruction and relative $L_2$ error quantification (`quantum/reconstruction.py`).
 - [ ] Quantum Variational Circuit (VQC) / Parameterized Quantum Policy optimization in `quantum/`.
 - [ ] Multi-scenario benchmark suites and automated metric logging in `experiment/` & `results/`.
 

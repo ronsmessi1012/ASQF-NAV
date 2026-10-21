@@ -6,6 +6,10 @@ from quantum.qft import apply_qft, apply_inverse_qft
 from qiskit.quantum_info import Statevector
 from quantum.spectral_analysis import analyze_spectrum
 from quantum.adaptive_filter import adaptive_spectral_filter
+from quantum.reconstruction import (
+    reconstruct_field,
+    reconstruction_error as compute_reconstruction_error
+)
 
 # --------------------------------------------------
 # Environment
@@ -43,7 +47,7 @@ X, Y, field = generate_field(
 # Amplitude encode
 # --------------------------------------------------
 
-circuit, original_amplitudes = encode_field(field)
+circuit, amplitudes = encode_field(field)
 
 n_qubits = circuit.num_qubits
 
@@ -131,6 +135,32 @@ filtered_spectrum, bandwidth, cutoff, retained_fraction, mask = (
         analysis["complexity"]
     )
 )
+
+reconstructed_field, reconstructed_state = reconstruct_field(
+    filtered_spectrum,
+    field.shape
+)
+
+error = compute_reconstruction_error(
+    amplitudes,
+    reconstructed_field.flatten()
+)
+
+print("\n========== RECONSTRUCTION ==========")
+print("Original field shape:", field.shape)
+print("Reconstructed field shape:", reconstructed_field.shape)
+print("Reconstructed state norm:",
+      np.linalg.norm(reconstructed_state))
+print("Minimum reconstructed value:",
+      np.min(reconstructed_field))
+print("Maximum reconstructed value:",
+      np.max(reconstructed_field))
+print("Mean reconstructed value:",
+      np.mean(reconstructed_field))
+print("Relative reconstruction error:",
+      error)
+print("Relative reconstruction error (%):",
+      error * 100)
 
 print("\n========== ADAPTIVE FILTER ==========")
 print("Spectral complexity:", analysis["complexity"])
