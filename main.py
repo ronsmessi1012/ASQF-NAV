@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from environment.field import generate_field
+from navigation.controller import (
+    navigation_step,
+    reached_goal
+)
 
 
 # ============================================================
@@ -9,48 +13,125 @@ from environment.field import generate_field
 # ============================================================
 
 agents = [
-    (2, 2),
-    (13, 13)
+    (2.0, 2.0),
+    (3.0, 13.0)
 ]
 
 goals = [
-    (13, 13),
-    (2, 2)
+    (13.0, 13.0),
+    (13.0, 2.0)
 ]
 
 obstacles = [
-    (8, 8),
-    (5, 11)
+    (8.0, 9.0),
+    (5.0, 11.0)
 ]
 
 
 # ============================================================
-# GENERATE FIELD FOR AGENT 0
+# ROBOT 0
 # ============================================================
 
-X, Y, field = generate_field(
-    agents=agents,
-    goals=goals,
-    obstacles=obstacles,
-    current_agent=0
+position = np.array(
+    agents[0],
+    dtype=float
+)
+
+goal = np.array(
+    goals[0],
+    dtype=float
+)
+
+
+trajectory = [
+    position.copy()
+]
+
+
+# ============================================================
+# NAVIGATION LOOP
+# ============================================================
+
+MAX_STEPS = 200
+
+for step in range(MAX_STEPS):
+
+    # Generate current interaction field
+    X, Y, field = generate_field(
+        agents=[
+            position,
+            agents[1]
+        ],
+        goals=goals,
+        obstacles=obstacles,
+        current_agent=0
+    )
+
+    # Move robot
+    position, velocity = navigation_step(
+        position,
+        goal,
+        field
+    )
+
+    trajectory.append(
+        position.copy()
+    )
+
+    # Check goal
+    if reached_goal(
+        position,
+        goal
+    ):
+
+        print(
+            f"Goal reached in {step + 1} steps."
+        )
+
+        break
+
+
+trajectory = np.array(
+    trajectory
+)
+
+print("\nTrajectory:")
+for i, point in enumerate(trajectory[::10]):
+    print(
+        f"Step {i * 10:3d}: "
+        f"({point[0]:.3f}, {point[1]:.3f})"
+    )
+
+
+# ============================================================
+# RESULTS
+# ============================================================
+
+print(
+    "Starting position:",
+    agents[0]
+)
+
+print(
+    "Final position:",
+    position
+)
+
+print(
+    "Goal:",
+    goal
+)
+
+print(
+    "Final distance:",
+    np.linalg.norm(
+        position - goal
+    )
 )
 
 
 # ============================================================
-# PRINT BASIC INFORMATION
-# ============================================================
-
-print("Grid shape:", field.shape)
-
-print("Minimum field value:", np.min(field))
-
-print("Maximum field value:", np.max(field))
-
-print("Mean field value:", np.mean(field))
-
-
-# ============================================================
-# VISUALIZE
+# VISUALIZATION
 # ============================================================
 
 plt.figure(figsize=(8, 7))
@@ -62,67 +143,69 @@ plt.imshow(
     cmap="viridis"
 )
 
+
+# ------------------------------------------------------------
 # Obstacles
+# ------------------------------------------------------------
+
 for obstacle in obstacles:
 
     plt.scatter(
         obstacle[0],
         obstacle[1],
         marker="s",
-        s=180,
+        s=220,
         c="red"
     )
 
 
-# Agents
-for i, agent in enumerate(agents):
+# ------------------------------------------------------------
+# Robot trajectory
+# ------------------------------------------------------------
 
-    plt.scatter(
-        agent[0],
-        agent[1],
-        marker="o",
-        s=120,
-        edgecolors="white",
-        linewidths=2
-    )
-
-    plt.text(
-        agent[0] + 0.3,
-        agent[1] + 0.3,
-        f"A{i}",
-        color="white",
-        fontsize=10
-    )
+plt.plot(
+    trajectory[:, 0],
+    trajectory[:, 1],
+    linewidth=2,
+    c="white",
+    label="Robot trajectory"
+)
 
 
-# Goals
-for i, goal in enumerate(goals):
-
-    plt.scatter(
-        goal[0],
-        goal[1],
-        marker="*",
-        s=220,
-        c="yellow"
-    )
-
-    plt.text(
-        goal[0] + 0.3,
-        goal[1] + 0.3,
-        f"G{i}",
-        color="white",
-        fontsize=10
-    )
+# Starting point
+plt.scatter(
+    agents[0][0],
+    agents[0][1],
+    s=140,
+    marker="o",
+    c="cyan",
+    label="Start"
+)
 
 
-plt.colorbar(label="Potential Field F(x,y)")
+# Goal
+plt.scatter(
+    goal[0],
+    goal[1],
+    s=250,
+    marker="*",
+    c="yellow",
+    label="Goal"
+)
 
-plt.title(
-    "AQSF-NAV — Classical Interaction Potential Field"
+
+plt.colorbar(
+    label="Potential Field F(x,y)"
 )
 
 plt.xlabel("X")
 plt.ylabel("Y")
+
+plt.title(
+    "AQSF-NAV — Gradient-Based Navigation"
+)
+
+plt.legend()
 
 plt.tight_layout()
 
