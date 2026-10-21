@@ -2,7 +2,7 @@
 
 > **Autonomous Multi-Agent Navigation Framework with Potential Fields, Dynamic Collision Avoidance, and Quantum Spectral Transforms**
 
-**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) with **Amplitude Encoding** and the **Quantum Fourier Transform (QFT)** for collision-free multi-agent navigation in complex environments.
+**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) with **Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, and **Quantum Spectral Complexity Analysis** for collision-free navigation in complex environments.
 
 ---
 
@@ -17,13 +17,14 @@ ASQF/
 ├── quantum/
 │   ├── amplitude_encoding.py # 8-qubit quantum amplitude state preparation for 16x16 potential fields
 │   ├── qft.py                # Quantum Fourier Transform (QFT) & Inverse QFT (IQFT) circuit implementations
+│   ├── spectral_analysis.py  # Spectral power, frequency metrics, and spatial complexity analysis
 │   └── test_amplitude.py     # Verification script for quantum amplitude encoding
 ├── experiment/               # Benchmark scenarios, evaluation suites, and parameter sweeps
 ├── results/                  # Output metrics, performance logs, and simulation artifacts
 ├── visualization/            # Matplotlib plotting routines, circuit & trajectory renderers
 ├── main.py                   # Multi-agent dynamic closed-loop simulation & trajectory visualizer
 ├── test_amplitude.py         # Quantum statevector encoding test runner
-├── test_qft.py               # Step 4: QFT & IQFT unitary validation & spectral decomposition test runner
+├── test_qft.py               # Step 4: QFT & IQFT validation & spectral decomposition test runner
 ├── requirements.txt          # Python dependencies
 ├── .gitignore                # Git exclusion rules
 └── README.md                 # Project documentation
@@ -43,6 +44,7 @@ ASQF/
   - **Hard Safety Projection** ($d \le 1.05$): Orthogonally projects out any velocity component pointing toward another robot and adds a radial separation force.
 - **`quantum/amplitude_encoding.py`**: Encodes the entire $16 \times 16$ ($N = 256$) scalar field into an $n = 8$ qubit quantum statevector using Qiskit's `initialize()` operator, with exact fidelity verification.
 - **`quantum/qft.py`**: Implements the Quantum Fourier Transform (QFT) and Inverse QFT (IQFT) on $n$ qubits using Hadamard gates, controlled phase rotations ($CP$), and SWAP inversion cascades.
+- **`quantum/spectral_analysis.py`**: Analyzes the QFT frequency spectrum to compute spectral power distribution and **Spectral Complexity** ($\mathcal{C}_{\text{spectral}}$), quantifying spatial clutter and obstacle density directly in the frequency domain.
 - **`experiment/`**: Automated test harnesses to evaluate path efficiency, collision rates, and computational scaling.
 - **`results/`**: Output directory for storing trajectory benchmarks, CSV metric data, and generated figures.
 - **`visualization/`**: Plotting utilities for field heatmaps, multi-agent trajectories, and quantum circuit layouts.
@@ -128,6 +130,18 @@ $$\text{QFT} |j\rangle = \frac{1}{\sqrt{N}} \sum_{k=0}^{N-1} \omega^{j k} |k\ran
   - $\text{IQFT} \cdot \text{QFT} = \mathbb{I}$
   - State reconstruction error: $\| |\psi\rangle - \text{IQFT}(\text{QFT}|\psi\rangle) \|_2 = \mathbf{1.56 \times 10^{-15}}$ (exact machine precision).
   - Total spectral energy is strictly conserved ($\sum |\tilde{c}_k|^2 \approx 1.0$).
+
+### 3. Spectral Complexity & Environment Clutter
+Using [quantum/spectral_analysis.py](file:///Users/ronnie/Documents/ASQF/quantum/spectral_analysis.py), the frequency distribution reveals structural spatial information about the environment:
+- **Spectral Power**: $P(k) = |\tilde{c}_k|^2$ for frequency mode $k$.
+- **Spectral Complexity ($\mathcal{C}_{\text{spectral}}$)**: Defined as the fraction of energy in high-frequency spatial modes ($|f_k| > 0.25 N = 64$):
+
+$$\mathcal{C}_{\text{spectral}} = \frac{\sum_{|f_k| > 64} P(k)}{\sum_{k=0}^{255} P(k)}$$
+
+- **Navigational Significance**:
+  - Smooth attractor basins concentrate $\approx 98.87\%$ of spectral power in low-frequency harmonics.
+  - Localized obstacle boundaries, narrow passages, and inter-agent boundaries manifest in the high-frequency band ($\approx 1.13\%$).
+  - Provides a global, quantum-evaluable complexity index to quantify navigation difficulty and clutter density.
 
 ---
 
@@ -227,9 +241,9 @@ Normalization error: 1.1102230246251565e-16
 
 ---
 
-### 3. Step 4: QFT & IQFT Unitary Validation
+### 3. QFT Validation & Spectral Complexity Analysis
 
-Run the Quantum Fourier Transform validation on the encoded multi-agent potential field:
+Run the Quantum Fourier Transform validation and spectral complexity evaluation:
 
 ```bash
 python3.11 test_qft.py
@@ -238,6 +252,13 @@ python3.11 test_qft.py
 #### Console Output
 
 ```text
+========== SPECTRAL ANALYSIS ==========
+Number of spectral components: 256
+Total spectral power: 0.9999999999999982
+High-frequency spectral power: 0.011308812510864054
+Spectral complexity: 0.011308812510864075
+Spectral complexity (%): 1.1308812510864075
+
 ========== STEP 4: QFT VALIDATION ==========
 Number of qubits: 8
 State dimension: 256
@@ -260,6 +281,7 @@ Minimum spectral power: 2.2118479466521852e-07
 - [x] Multi-agent closed-loop navigation rollout and dynamic trajectory visualization (`main.py`).
 - [x] 8-qubit quantum amplitude encoding of $16 \times 16$ spatial fields (`quantum/amplitude_encoding.py`).
 - [x] Quantum Fourier Transform (QFT & IQFT) with unitary spectral verification (`quantum/qft.py`).
+- [x] Quantum spectral power distribution and spatial complexity analysis (`quantum/spectral_analysis.py`).
 - [ ] Quantum Variational Circuit (VQC) / Parameterized Quantum Policy optimization in `quantum/`.
 - [ ] Multi-scenario benchmark suites and automated metric logging in `experiment/` & `results/`.
 

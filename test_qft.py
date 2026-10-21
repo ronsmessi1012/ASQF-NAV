@@ -4,7 +4,7 @@ from environment.field import generate_field
 from quantum.amplitude_encoding import encode_field
 from quantum.qft import apply_qft, apply_inverse_qft
 from qiskit.quantum_info import Statevector
-
+from quantum.spectral_analysis import analyze_spectrum
 
 # --------------------------------------------------
 # Environment
@@ -117,7 +117,12 @@ spectrum = np.asarray(
     qft_state.data
 )
 
+
 spectral_power = np.abs(spectrum) ** 2
+
+analysis = analyze_spectrum(
+    spectrum
+)
 
 
 # --------------------------------------------------
