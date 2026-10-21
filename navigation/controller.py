@@ -1,23 +1,16 @@
 import numpy as np
 
-# ============================================================
-# NAVIGATION PARAMETERS
-# ============================================================
 
 STEP_SIZE = 0.20
 GOAL_TOLERANCE = 0.45
 MAX_SPEED = 1.0
 
+# Safety parameters
+SAFE_DISTANCE = 1.05
+AVOIDANCE_DISTANCE = 1.5
 
-# ============================================================
-# BILINEAR INTERPOLATION
-# ============================================================
 
 def bilinear_interpolate(grid, x, y):
-    """
-    Bilinearly interpolate a 2D grid at continuous
-    coordinates (x, y).
-    """
 
     height, width = grid.shape
 
@@ -33,28 +26,15 @@ def bilinear_interpolate(grid, x, y):
     dx = x - x0
     dy = y - y0
 
-    value = (
+    return (
         grid[y0, x0] * (1 - dx) * (1 - dy)
         + grid[y0, x1] * dx * (1 - dy)
         + grid[y1, x0] * (1 - dx) * dy
         + grid[y1, x1] * dx * dy
     )
 
-    return value
 
-
-# ============================================================
-# CONTINUOUS FIELD GRADIENT
-# ============================================================
-
-def sample_field_gradient(
-    field,
-    position
-):
-    """
-    Calculate the numerical gradient of the field
-    and continuously interpolate it at the robot position.
-    """
+def sample_field_gradient(field, position):
 
     grad_y, grad_x = np.gradient(field)
 
@@ -75,21 +55,16 @@ def sample_field_gradient(
     return gx, gy
 
 
-# ============================================================
-# ROBOT VELOCITY
-# ============================================================
-
 def compute_velocity(
     field,
     position,
-    goal
+    goal,
+    other_agents=None
 ):
-    """
-    Compute velocity using the negative potential gradient.
 
-    A tangential component is introduced when the robot
-    encounters a local minimum away from the goal.
-    """
+    # --------------------------------------------------
+    # 1. APF gradient
+    # --------------------------------------------------
 
     grad_x, grad_y = sample_field_gradient(
         field,
@@ -101,19 +76,15 @@ def compute_velocity(
         dtype=float
     )
 
-    # --------------------------------------------------------
-    # Negative gradient
-    # --------------------------------------------------------
-
     velocity = -gradient
 
     gradient_magnitude = np.linalg.norm(
-        gradient
+        velocity
     )
 
-    # --------------------------------------------------------
-    # Goal direction
-    # --------------------------------------------------------
+    # --------------------------------------------------
+    # 2. Goal direction
+    # --------------------------------------------------
 
     goal_direction = (
         np.array(goal, dtype=float)
@@ -127,62 +98,100 @@ def compute_velocity(
     if goal_distance > 1e-10:
         goal_direction /= goal_distance
 
-    # --------------------------------------------------------
-    # Local-minimum escape
-    # --------------------------------------------------------
+    # --------------------------------------------------
+    # 3. Combine APF + goal direction
+    # --------------------------------------------------
 
-    if (
-        gradient_magnitude < 0.15
-        and goal_distance > GOAL_TOLERANCE
-    ):
+    if gradient_magnitude > 1e-10:
+        velocity /= gradient_magnitude
 
-        # Tangential direction to the local field
-        tangent = np.array(
-            [-grad_y, grad_x],
-            dtype=float
-        )
+    velocity = (
+        0.65 * velocity
+        + 0.35 * goal_direction
+    )
 
-        tangent_magnitude = np.linalg.norm(
-            tangent
-        )
+    # --------------------------------------------------
+    # 4. Early collision avoidance
+    # --------------------------------------------------
 
-        if tangent_magnitude > 1e-10:
+    if other_agents is not None:
 
-            tangent /= tangent_magnitude
+        for other in other_agents:
 
-            # Choose tangent orientation that points
-            # generally toward the goal
-            if np.dot(
-                tangent,
-                goal_direction
-            ) < 0:
-
-                tangent = -tangent
-
-            velocity = (
-                0.45 * goal_direction
-                + 0.55 * tangent
+            relative_position = (
+                np.array(position, dtype=float)
+                - np.array(other, dtype=float)
             )
 
-        else:
+            distance = np.linalg.norm(
+                relative_position
+            )
 
-            velocity = goal_direction
+            if (
+                distance > 1e-10
+                and distance < AVOIDANCE_DISTANCE
+            ):
 
-    else:
+                # Direction pointing away
+                # from the other robot
+                away_direction = (
+                    relative_position / distance
+                )
 
-        # Normal APF navigation
-        if gradient_magnitude > 1e-10:
+                # --------------------------------------------------
+                # Early avoidance steering
+                # --------------------------------------------------
 
-            velocity /= gradient_magnitude
+                if distance > SAFE_DISTANCE:
 
-        velocity = (
-            0.65 * velocity
-            + 0.35 * goal_direction
-        )
+                    # Smoothly increase avoidance strength
+                    # as robots approach SAFE_DISTANCE.
+                    avoidance_strength = (
+                        (AVOIDANCE_DISTANCE - distance)
+                        / (AVOIDANCE_DISTANCE - SAFE_DISTANCE)
+                    )
 
-    # --------------------------------------------------------
-    # Normalize
-    # --------------------------------------------------------
+                    avoidance_strength = np.clip(
+                        avoidance_strength,
+                        0.0,
+                        1.0
+                    )
+
+                    velocity += (
+                        avoidance_strength
+                        * away_direction
+                    )
+
+                # --------------------------------------------------
+                # Hard safety projection
+                # --------------------------------------------------
+
+                else:
+
+                    radial_velocity = np.dot(
+                        velocity,
+                        away_direction
+                    )
+
+                    # Remove velocity component that
+                    # moves toward the other robot.
+                    if radial_velocity < 0:
+
+                        velocity -= (
+                            radial_velocity
+                            * away_direction
+                        )
+
+                    # Add a small outward component
+                    # while inside the safety radius.
+                    velocity += (
+                        (SAFE_DISTANCE - distance)
+                        * away_direction
+                    )
+
+    # --------------------------------------------------
+    # 5. Normalize velocity
+    # --------------------------------------------------
 
     magnitude = np.linalg.norm(
         velocity
@@ -197,23 +206,18 @@ def compute_velocity(
     return velocity
 
 
-# ============================================================
-# NAVIGATION STEP
-# ============================================================
-
 def navigation_step(
     position,
     goal,
-    field
+    field,
+    other_agents=None
 ):
-    """
-    Perform one continuous navigation step.
-    """
 
     velocity = compute_velocity(
         field,
         position,
-        goal
+        goal,
+        other_agents
     )
 
     new_position = (
@@ -221,27 +225,10 @@ def navigation_step(
         + STEP_SIZE * velocity
     )
 
-    # Keep robot inside 16x16 environment
-    new_position = np.clip(
-        new_position,
-        0,
-        15
-    )
-
     return new_position, velocity
 
 
-# ============================================================
-# GOAL CHECK
-# ============================================================
-
-def reached_goal(
-    position,
-    goal
-):
-    """
-    Check whether the robot has reached its goal.
-    """
+def reached_goal(position, goal):
 
     distance = np.linalg.norm(
         np.array(position)

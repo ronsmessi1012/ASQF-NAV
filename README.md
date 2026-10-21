@@ -1,8 +1,8 @@
 # ASQF-NAV
 
-> **Autonomous Navigation & Simulation Framework with Potential Fields, Continuous Gradient Control, and Quantum Optimization**
+> **Autonomous Multi-Agent Navigation Framework with Potential Fields, Dynamic Collision Avoidance, and Quantum Amplitude Encoding**
 
-**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) for collision-free multi-agent navigation in complex grid environments.
+**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) for collision-free multi-agent navigation in complex grid environments.
 
 ---
 
@@ -11,14 +11,17 @@
 ```text
 ASQF/
 ├── environment/
-│   └── field.py              # Artificial Potential Field (goal attraction, obstacle & agent repulsion)
+│   └── field.py              # Artificial Potential Field (goal attraction, obstacle & dynamic agent repulsion)
 ├── navigation/
-│   └── controller.py         # Continuous motion controller, bilinear interpolation & local-minimum escape
-├── quantum/                  # Quantum circuits, variational layers, and Qiskit-Aer simulation
+│   └── controller.py         # Multi-agent continuous motion controller with early avoidance & hard safety projection
+├── quantum/
+│   ├── amplitude_encoding.py # 8-qubit quantum amplitude state preparation for 16x16 potential fields
+│   └── test_amplitude.py     # Verification script for quantum amplitude encoding
 ├── experiment/               # Benchmark scenarios, evaluation suites, and parameter sweeps
 ├── results/                  # Output metrics, performance logs, and simulation artifacts
 ├── visualization/            # Matplotlib plotting routines, circuit & trajectory renderers
-├── main.py                   # Closed-loop simulation demo & trajectory visualizer
+├── main.py                   # Multi-agent dynamic closed-loop simulation & trajectory visualizer
+├── test_amplitude.py         # Quantum statevector encoding test runner
 ├── requirements.txt          # Python dependencies
 ├── .gitignore                # Git exclusion rules
 └── README.md                 # Project documentation
@@ -28,18 +31,18 @@ ASQF/
 
 - **`environment/field.py`**: Computes the 2D interaction potential field for agents on a discrete $16 \times 16$ grid.
   - Attractive potential pulling agents toward target goals.
-  - Repulsive potential pushing agents away from static obstacles within a defined influence radius.
-  - Inter-agent dynamic repulsive potential to prevent collisions between moving agents.
+  - Repulsive potential pushing agents away from static obstacles within an influence radius.
+  - Inter-agent dynamic repulsive potential treating other moving robots as dynamic obstacles.
   - Distance clamping ($d^* = \max(d, 0.5)$) to eliminate numerical division-by-zero singularities.
-- **`navigation/controller.py`**: Closed-loop continuous motion planning and robot velocity generation.
+- **`navigation/controller.py`**: Closed-loop multi-agent continuous motion planning and velocity generation.
   - **Bilinear Field Interpolation**: Evaluates discrete grid potential and gradients smoothly at continuous floating-point robot positions.
-  - **Gradient-Based Steering**: Computes velocities using normalized negative potential gradients combined with goal heading.
-  - **Local-Minimum Escape**: Detects field stagnation ($\|\nabla F\| < 0.15$) and injects an orthogonal tangential velocity along the equipotential contour toward the goal.
-  - **Continuous Step & Bounds**: Advances agent positions with configurable step size ($\Delta t = 0.20$) while clipping within grid bounds.
-- **`quantum/`**: Quantum circuit definitions, state encoding, variational quantum layers (VQC), and Qiskit-Aer simulation backends.
+  - **Gradient-Based Steering**: Blends normalized negative potential gradients with direct goal headings.
+  - **Early Avoidance Steering** ($d < 1.5$): Smoothly increases outward separation velocity as robots approach each other.
+  - **Hard Safety Projection** ($d \le 1.05$): Orthogonally projects out any velocity component pointing toward another robot and adds a radial separation force.
+- **`quantum/amplitude_encoding.py`**: Encodes the entire $16 \times 16$ ($N = 256$) scalar field into an $n = 8$ qubit quantum statevector using Qiskit's `initialize()` operator, with exact fidelity verification.
 - **`experiment/`**: Automated test harnesses to evaluate path efficiency, collision rates, and computational scaling.
 - **`results/`**: Output directory for storing trajectory benchmarks, CSV metric data, and generated figures.
-- **`visualization/`**: Plotting utilities for field heatmaps, agent trajectories, and quantum circuit layouts.
+- **`visualization/`**: Plotting utilities for field heatmaps, multi-agent trajectories, and quantum circuit layouts.
 
 ---
 
@@ -61,7 +64,7 @@ $$F_{\text{total}}(x, y) = F_{\text{goal}}(x, y) + F_{\text{obstacle}}(x, y) + F
    Where $d_i^* = \max(d_i, 0.5)$ prevents division-by-zero singularities.  
    *(Parameters: $k_{\text{obs}} = 80.0$, $\rho_{\text{obs}} = 2.0$)*
 
-3. **Inter-Agent Repulsion ($F_{\text{agent}}$):**
+3. **Dynamic Agent Repulsion ($F_{\text{agent}}$):**
    $$F_{\text{agent}}(x, y) = \sum_{j \neq \text{self}} \begin{cases}
    \frac{1}{2} k_{\text{agent}} \left( \frac{1}{d_j^*} - \frac{1}{\rho_{\text{agent}}} \right)^2 & \text{if } d_j < \rho_{\text{agent}} \\
    0 & \text{otherwise}
@@ -70,25 +73,42 @@ $$F_{\text{total}}(x, y) = F_{\text{goal}}(x, y) + F_{\text{obstacle}}(x, y) + F
 
 ---
 
-## 🧭 Navigation & Control Architecture
+## 🧭 Multi-Agent Motion Controller & Safety Layers
 
 The robot controller operates in continuous coordinate space $(x, y) \in [0, 15] \times [0, 15]$:
 
 1. **Continuous Gradient Sampling:**
-   Using central differences on the potential field grid, the spatial gradient $(\nabla_x F, \nabla_y F)$ is computed and bilinearly interpolated at continuous robot coordinates:
+   Spatial gradients $(\nabla_x F, \nabla_y F)$ are computed from the discrete field via central differences and bilinearly interpolated at continuous robot coordinates:
    $$\nabla F(p) = \text{BilinearInterpolate}\left(\nabla F_{\text{grid}}, p_x, p_y\right)$$
 
-2. **Velocity Blending:**
-   Under standard APF conditions:
-   $$v = 0.65 \cdot \left(-\frac{\nabla F}{\|\nabla F\|}\right) + 0.35 \cdot \hat{d}_{\text{goal}}$$
+2. **Base Velocity Blending:**
+   $$v_{\text{base}} = 0.65 \cdot \left(-\frac{\nabla F}{\|\nabla F\|}\right) + 0.35 \cdot \hat{d}_{\text{goal}}$$
 
-3. **Equipotential Tangent Escape:**
-   When encountering a local minimum ($\|\nabla F\| < 0.15$ while $\|p - g\| > 0.45$):
-   $$\tau = \left(-\frac{\partial F}{\partial y}, \frac{\partial F}{\partial x}\right), \quad v = 0.45 \cdot \hat{d}_{\text{goal}} + 0.55 \cdot \hat{\tau}$$
-   (ensuring $\hat{\tau} \cdot \hat{d}_{\text{goal}} \ge 0$).
+3. **Dual-Layer Inter-Agent Collision Avoidance:**
+   For relative position vector $r = p_{\text{self}} - p_{\text{other}}$ and separation $d = \|r\|$:
+   - **Layer 1: Early Avoidance Steering** ($d_{\text{safe}} < d < d_{\text{avoid}}$, where $d_{\text{avoid}} = 1.5, d_{\text{safe}} = 1.05$):
+     $$w_{\text{avoid}} = \frac{d_{\text{avoid}} - d}{d_{\text{avoid}} - d_{\text{safe}}}, \quad v \leftarrow v + w_{\text{avoid}} \cdot \hat{r}$$
+   - **Layer 2: Hard Safety Projection** ($d \le d_{\text{safe}}$):
+     If $v \cdot \hat{r} < 0$ (moving toward the other robot):
+     $$v \leftarrow v - (v \cdot \hat{r}) \hat{r} + (d_{\text{safe}} - d) \cdot \hat{r}$$
 
 4. **Integration & Termination:**
-   Position updates follow $p_{t+1} = p_t + \Delta t \cdot v$ with $\Delta t = 0.20$ and $v_{\text{max}} = 1.0$. The navigation terminates when $\|p - g\| \le 0.45$.
+   Position updates follow $p_{t+1} = p_t + \Delta t \cdot v$ with $\Delta t = 0.20$ and $v_{\text{max}} = 1.0$. The agent terminates when $\|p - g\| \le 0.45$.
+
+---
+
+## ⚛️ Quantum Amplitude Encoding
+
+To interface the spatial environment with quantum algorithms and variational circuits:
+- The continuous scalar potential field $F \in \mathbb{R}^{16 \times 16}$ is flattened into a vector of $N = 256$ elements.
+- The vector is normalized under the $L_2$ norm: $\|c\|_2 = 1.0$.
+- Because $256 = 2^8$, the entire potential landscape is mapped into the state amplitudes of an **8-qubit quantum register**:
+
+$$|\psi\rangle = \sum_{i=0}^{255} c_i |i\rangle, \quad \sum_{i=0}^{255} |c_i|^2 = 1$$
+
+- State preparation is implemented using Qiskit's `QuantumCircuit.initialize()` and verified against exact simulated `Statevector` outputs:
+  - **Classical $\rightarrow$ Quantum Amplitude Reconstruction Error:** $0.0$
+  - **Normalization Error:** $\approx 1.11 \times 10^{-16}$
 
 ---
 
@@ -124,58 +144,85 @@ The robot controller operates in continuous coordinate space $(x, y) \in [0, 15]
 | :--- | :--- | :--- |
 | `numpy` | `^2.0` | Numerical grids, bilinear interpolation, vector algebra |
 | `matplotlib` | `^3.10` | 2D field visualization, trajectory traces, and scatter markers |
-| `qiskit` | `^2.6` | Quantum circuit construction, transpilation, and quantum gates |
-| `qiskit-aer` | `^0.18` | High-performance quantum simulation backends |
+| `qiskit` | `^2.6` | Quantum circuit construction, state initialization, and quantum gates |
+| `qiskit-aer` | `^0.18` | High-performance quantum statevector and circuit simulations |
 | `scipy` | `^1.17` | Scientific computing and optimization routines |
 
 ---
 
-## 💻 Running the Simulation
+## 💻 Running the Simulations
 
-Execute `main.py` to run the closed-loop navigation simulation:
+### 1. Multi-Agent Navigation Demo
+
+Execute `main.py` to run the closed-loop multi-agent simulation with crossing trajectories and obstacle avoidance:
 
 ```bash
 python3.11 main.py
 ```
 
-### Console Output
+#### Console Output
 
 ```text
-Goal reached in 78 steps.
+Both robots reached their goals in 93 steps.
 
-Trajectory:
-Step   0: (2.000, 2.000)
-Step  10: (3.414, 3.414)
-Step  20: (4.828, 4.828)
-Step  30: (6.243, 6.243)
-Step  40: (7.787, 7.439)
-Step  50: (9.544, 8.078)
-Step  60: (10.872, 9.566)
-Step  70: (11.928, 11.265)
-Starting position: (2.0, 2.0)
-Final position: [12.76895673 12.62606621]
-Goal: [13. 13.]
-Final distance: 0.4395537184949548
+Final Results
+Robot 0: Start=(2.0, 2.0), Final=(12.980, 12.702), Goal=[13. 13.], Distance=0.299
+Robot 1: Start=(3.0, 13.0), Final=(12.950, 2.093), Goal=[13.  2.], Distance=0.105
+
+Minimum inter-agent distance: 1.058
+Minimum distance occurred at step: 59
 ```
 
-### Visualization
+#### Visualization
 
 The script opens an interactive Matplotlib figure showing:
-- **Potential Field Heatmap:** Scaled potential values $F(x,y)$ rendered via `viridis`.
-- **Static Obstacles:** Red squares located at `(8.0, 9.0)` and `(5.0, 11.0)`.
-- **Robot Trajectory:** Smooth white curve tracing the agent's path from start to goal.
-- **Start Position:** Cyan circle marker at `(2.0, 2.0)`.
-- **Goal Target:** Yellow star marker at `(13.0, 13.0)`.
+- **Potential Field Heatmap:** Continuous interaction field surface $F(x,y)$.
+- **Static Obstacles:** Red squares at `(8.0, 9.0)` and `(5.0, 11.0)`.
+- **Robot Trajectories:** Curves tracing both Robot 0 and Robot 1 traversing the map without colliding.
+- **Start & Goal Markers:** Circle start markers and star goal targets for each agent.
+- **Safety Margin:** Confirms inter-agent separation remains above the safety threshold ($1.058 > 1.0$).
+
+---
+
+### 2. Quantum Amplitude Encoding Verification
+
+Test the 8-qubit quantum state encoding of the interaction potential field:
+
+```bash
+python3.11 test_amplitude.py
+```
+
+#### Console Output
+
+```text
+========== AMPLITUDE ENCODING ==========
+Classical field shape: (16, 16)
+Number of amplitudes: 256
+Number of qubits: 8
+Quantum state dimension: 256
+Classical vector norm: 1.0
+Quantum state norm: 1.0
+Amplitude reconstruction error: 0.0
+Normalization error: 1.1102230246251565e-16
+
+Quantum circuit:
+     »
+q_0: »
+q_1: »
+...
+q_7: »
+```
 
 ---
 
 ## 🧪 Roadmap
 
-- [x] Classical 2D Artificial Potential Field (APF) with obstacle and agent repulsion (`environment/field.py`).
+- [x] Classical 2D Artificial Potential Field (APF) with obstacle and dynamic agent repulsion (`environment/field.py`).
 - [x] Continuous bilinear interpolation & numerical gradient sampling (`navigation/controller.py`).
-- [x] Tangential equipotential steering for local-minima avoidance.
-- [x] Closed-loop navigation rollout and dynamic trajectory visualization (`main.py`).
-- [ ] Quantum variational circuit (VQC) / QRL policy integration in `quantum/`.
+- [x] Dual-layer multi-agent collision avoidance (early avoidance steering + hard safety projection).
+- [x] Multi-agent closed-loop navigation rollout and dynamic trajectory visualization (`main.py`).
+- [x] 8-qubit quantum amplitude encoding of $16 \times 16$ spatial fields (`quantum/amplitude_encoding.py`).
+- [ ] Quantum Variational Circuit (VQC) / Parameterized Quantum Policy optimization in `quantum/`.
 - [ ] Multi-scenario benchmark suites and automated metric logging in `experiment/` & `results/`.
 
 ---
