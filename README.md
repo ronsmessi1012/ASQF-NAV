@@ -2,7 +2,7 @@
 
 > **Adaptive Spectral Quantum Filtering for Multi-Agent Navigation with Artificial Potential Fields, Dynamic Collision Avoidance, and Quantum Spectral Transforms**
 
-**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, the **Adaptive Spectral Quantum Filter (ASQF)**, and **Closed-Loop Quantum-Assisted Multi-Agent Navigation** for collision-free routing in complex environments.
+**ASQF-NAV** is a multi-agent simulation and path planning research platform combining classical **Artificial Potential Fields (APF)**, continuous **bilinear gradient controllers with dual-layer collision avoidance**, and **Quantum Computing** (via [Qiskit](https://github.com/Qiskit/qiskit)) featuring **8-Qubit Amplitude Encoding**, the **Quantum Fourier Transform (QFT)**, **Quantum Spectral Complexity Analysis**, the **Adaptive Spectral Quantum Filter (ASQF)**, and **Comparative Multi-Agent Benchmarking** for collision-free routing in complex environments.
 
 ---
 
@@ -30,6 +30,7 @@ ASQF/
 ├── test_qft.py                   # Step 4: QFT, spectral complexity, adaptive filtering & reconstruction test runner
 ├── test_quantum_navigation.py    # Step 8: Quantum navigation pipeline & velocity generation test runner
 ├── test_quantum_multi_agent.py   # Step 8B: Closed-loop quantum-assisted multi-agent rollout benchmark
+├── test_classical_vs_quantum.py  # Unified comparative benchmark harness (Classical APF vs. Quantum ASQF)
 ├── requirements.txt              # Python dependencies
 ├── .gitignore                    # Git exclusion rules
 └── README.md                     # Project documentation
@@ -63,16 +64,24 @@ ASQF/
 
 ## 📊 Performance Comparison: Classical APF vs. Quantum ASQF-NAV
 
-| Metric | Classical Baseline (`main.py`) | Quantum ASQF-NAV (`test_quantum_multi_agent.py`) | Improvement |
-| :--- | :---: | :---: | :---: |
-| **Total Steps to Goal** | **93 steps** | **84 steps** | **+9.7% faster convergence** |
-| **Minimum Inter-Agent Distance** | $1.058$ | $1.064$ | **Enhanced safety margin** |
-| **Collision Status** | Zero collisions ($> 1.0$) | Zero collisions ($> 1.0$) | Verified collision-free |
-| **Average Spectral Complexity** | N/A (Classical) | $0.011617$ ($1.16\%$) | Clutter quantified in state space |
-| **Average Adaptive Bandwidth** | N/A (Classical) | $0.744191$ ($74.42\%$) | Dynamic low-pass tuning |
-| **Average Reconstruction Error** | N/A (Classical) | $0.065513$ ($6.55\%$) | Preserves $93.45\%$ field shape |
+The unified benchmark harness ([test_classical_vs_quantum.py](file:///Users/ronnie/Documents/ASQF/test_classical_vs_quantum.py)) evaluates both controllers across identical initial positions, goals, and obstacle configurations:
 
-> **Key Insight**: The Adaptive Spectral Quantum Filter (ASQF) attenuates high-frequency potential ripples around obstacle corners and opposing agents. The resulting filtered potential landscape produces smoother gradient vectors, eliminating micro-oscillations and allowing robots to reach their destinations **9 steps faster**.
+| Metric | Classical Baseline (`run_classical`) | Quantum ASQF-NAV (`run_quantum`) | Delta / Improvement |
+| :--- | :---: | :---: | :---: |
+| **Mission Success Rate** | **100%** (2/2 reached) | **100%** (2/2 reached) | Parity |
+| **Total Steps to Goal** | **93 steps** | **84 steps** | **-9 steps (-9.68% faster)** |
+| **Total Path Length** | **37.2000 units** | **33.6000 units** | **-3.6000 units (-9.68% shorter)** |
+| **Robot 0 Path Length** | $18.6000$ | $16.8000$ | $-1.8000$ units |
+| **Robot 1 Path Length** | $18.6000$ | $16.8000$ | $-1.8000$ units |
+| **Minimum Inter-Agent Clearance** | $1.0583$ units | $1.0637$ units | **+0.0054 units (safer separation)** |
+| **Collision Status** | Zero collisions ($> 1.0$) | Zero collisions ($> 1.0$) | Verified collision-free |
+| **Robot 0 Goal Arrival Error** | $0.2990$ | $0.4345$ | $\le 0.45$ tolerance |
+| **Robot 1 Goal Arrival Error** | $0.1054$ | $0.0435$ | $\le 0.45$ tolerance |
+| **Average Spectral Complexity** | N/A (Classical) | **$0.011617$** ($1.16\%$) | Spatial clutter quantified in Hilbert space |
+| **Average Adaptive Bandwidth** | N/A (Classical) | **$0.744191$** ($74.42\%$) | Dynamically tuned low-pass spectrum |
+| **Average Reconstruction Error** | N/A (Classical) | **$0.065513$** ($6.55\%$) | Preserves $93.45\%$ global field profile |
+
+> **Why Quantum Spectral Filtering Accelerates Navigation**: Classical Artificial Potential Fields exhibit steep, high-frequency potential gradients and sharp equipotential corners around static obstacles and dynamic opposing agents. This causes micro-oscillations and detour behaviors. The **Adaptive Spectral Quantum Filter (ASQF)** transforms the field into the spatial-frequency domain via QFT, applies a complexity-dependent low-pass spectral cutoff, and inverts it back via IQFT. The resulting smoothed potential landscape eliminates micro-ripples while preserving obstacle deterrence and goal attraction, allowing agents to traverse **3.6 units shorter trajectories and reach destinations 9 steps faster**.
 
 ---
 
@@ -150,7 +159,7 @@ Inverse QFT Circuit (IQFT |ψ̃_filtered⟩)
 Filtered Classical 2D Potential Field (L2 Relative Error = 6.45%)
        │
        ▼
-Quantum Multi-Agent Closed-Loop Control (84 Steps to Goal)
+Quantum Multi-Agent Closed-Loop Control (84 Steps, 33.6 units)
 ```
 
 ### 1. 8-Qubit Amplitude Encoding
@@ -253,65 +262,86 @@ Using [quantum/reconstruction.py](file:///Users/ronnie/Documents/ASQF/quantum/re
 
 ## 💻 Running the Simulations & Validations
 
-### 1. Classical Multi-Agent Navigation Demo
+### 1. Unified Comparative Benchmark (Classical vs. Quantum)
 
-Execute `main.py` to run the classical closed-loop multi-agent baseline:
+Execute the head-to-head empirical comparison across identical multi-agent crossing environments:
+
+```bash
+python3.11 test_classical_vs_quantum.py
+```
+
+#### Console Output
+
+```text
+========================================
+ CLASSICAL VS QUANTUM NAVIGATION
+========================================
+
+Running classical controller...
+Classical simulation complete.
+
+Running quantum-adaptive controller...
+Quantum simulation complete.
+
+========================================
+ CLASSICAL RESULTS
+========================================
+Success: True
+Steps: 93
+Robot 0 final error: 0.2990
+Robot 1 final error: 0.1054
+Minimum inter-agent distance: 1.0583
+Robot 0 path length: 18.6000
+Robot 1 path length: 18.6000
+
+========================================
+ QUANTUM-ADAPTIVE RESULTS
+========================================
+Success: True
+Steps: 84
+Robot 0 final error: 0.4345
+Robot 1 final error: 0.0435
+Minimum inter-agent distance: 1.0637
+Robot 0 path length: 16.8000
+Robot 1 path length: 16.8000
+Average spectral complexity: 0.011617
+Average adaptive bandwidth: 0.744191
+Average reconstruction error: 0.065513
+
+========================================
+ COMPARISON
+========================================
+Step difference: -9
+Minimum-distance difference: 0.0054
+Total path length - Classical: 37.2000
+Total path length - Quantum: 33.6000
+
+Experiment complete.
+```
+
+---
+
+### 2. Classical Multi-Agent Simulation Demo
+
+Run `main.py` to view the classical closed-loop multi-agent simulation and Matplotlib trajectory visualization:
 
 ```bash
 python3.11 main.py
 ```
 
-#### Console Output
-
-```text
-Both robots reached their goals in 93 steps.
-
-Final Results
-Robot 0: Start=(2.0, 2.0), Final=(12.980, 12.702), Goal=[13. 13.], Distance=0.299
-Robot 1: Start=(3.0, 13.0), Final=(12.950, 2.093), Goal=[13.  2.], Distance=0.105
-
-Minimum inter-agent distance: 1.058
-Minimum distance occurred at step: 59
-```
-
 ---
 
-### 2. Quantum-Assisted Multi-Agent Benchmark (Step 8B)
+### 3. Step 8B: Quantum Multi-Agent Closed-Loop Trajectory Run
 
-Run the full closed-loop quantum multi-agent simulation where each robot dynamically filters its potential field through the quantum pipeline at every step:
+Run the step-by-step trajectory logger for the quantum-assisted controller:
 
 ```bash
 python3.11 test_quantum_multi_agent.py
 ```
 
-#### Console Output
-
-```text
-Step   0 | Robot 0 = [2. 2.] | Robot 1 = [ 3. 13.] | Distance = 11.045
-Step  10 | Robot 0 = [3.41421356 3.41421356] | Robot 1 = [ 4.41421356 11.58578644] | Distance = 8.232
-Step  20 | Robot 0 = [4.98259995 4.91190128] | Robot 1 = [ 6.0173602  10.13339265] | Distance = 5.323
-Step  30 | Robot 0 = [6.0979306  6.56924828] | Robot 1 = [6.69212668 8.28707691] | Distance = 1.818
-Step  40 | Robot 0 = [7.94710119 6.58944181] | Robot 1 = [8.51020341 7.65786403] | Distance = 1.208
-Step  50 | Robot 0 = [8.75007478 7.47914828] | Robot 1 = [10.31122214  7.04199252] | Distance = 1.621
-Step  60 | Robot 0 = [10.02174414  8.99784303] | Robot 1 = [11.36320067  5.34459686] | Distance = 3.892
-Step  70 | Robot 0 = [11.04630771 10.70546957] | Robot 1 = [12.36289918  3.61398149] | Distance = 7.213
-Step  80 | Robot 0 = [12.45032578 12.12877555] | Robot 1 = [12.94059704  1.75286254] | Distance = 10.387
-
-Both robots reached their goals in 84 steps.
-
-========== STEP 8B RESULTS ==========
-Robot 0: Final = [12.80516986 12.61167911], Goal = [13. 13.], Distance = 0.434
-Robot 1: Final = [13.03235867  1.97090757], Goal = [13.  2.], Distance = 0.044
-
-Minimum inter-agent distance: 1.064
-Average spectral complexity: 0.011617
-Average adaptive bandwidth: 0.744191
-Average reconstruction error: 0.065513
-```
-
 ---
 
-### 3. Step 4: QFT, Spectral Complexity & Adaptive Filtering Verification
+### 4. Step 4: QFT, Spectral Complexity & Adaptive Filtering Verification
 
 Test quantum state encoding, Fourier transformation, spectral complexity, and filter reconstruction:
 
@@ -319,82 +349,14 @@ Test quantum state encoding, Fourier transformation, spectral complexity, and fi
 python3.11 test_qft.py
 ```
 
-#### Console Output
-
-```text
-========== SPECTRAL ANALYSIS ==========
-Number of spectral components: 256
-Total spectral power: 0.9999999999999982
-High-frequency spectral power: 0.011308812510864054
-Spectral complexity: 0.011308812510864075
-Spectral complexity (%): 1.1308812510864075
-Maximum imaginary component: 0.012136756891117855
-
-========== RECONSTRUCTION ==========
-Original field shape: (16, 16)
-Reconstructed field shape: (16, 16)
-Reconstructed state norm: 0.9999999999999996
-Minimum reconstructed value: -0.0002902245456402888
-Maximum reconstructed value: 0.1569685404838594
-Mean reconstructed value: 0.05064990704727313
-Relative reconstruction error: 0.06454817754849157
-Relative reconstruction error (%): 6.454817754849157
-
-========== ADAPTIVE FILTER ==========
-Spectral complexity: 0.011308812510864075
-Spectral complexity (%): 1.1308812510864075
-Adaptive bandwidth: 0.744345593744568
-Cutoff frequency: 95.2762359993047
-Retained spectral components: 191
-Total spectral components: 256
-Retained fraction: 0.74609375
-Filtered spectrum norm: 1.0000000000000004
-
-========== STEP 4: QFT VALIDATION ==========
-Number of qubits: 8
-State dimension: 256
-Original state norm: 0.9999999999999999
-QFT state norm: 0.9999999999999989
-Reconstructed state norm: 0.9999999999999983
-QFT -> IQFT reconstruction error: 1.5632581197446034e-15
-Total spectral power: 0.9999999999999982
-Maximum spectral power: 0.6512498428429626
-Minimum spectral power: 2.2118479466521852e-07
-```
-
 ---
 
-### 4. Step 8: Single-Step Quantum Navigation Test
+### 5. Step 8: Single-Step Quantum Navigation Test
 
 Validate single-step continuous velocity extraction from the quantum-filtered potential field:
 
 ```bash
 python3.11 test_quantum_navigation.py
-```
-
-#### Console Output
-
-```text
-========== STEP 8: QUANTUM NAVIGATION ==========
-Original field shape: (16, 16)
-Original field norm: 2067.30422476496
-Maximum imaginary component: 0.012136756891117855
-
----------- Quantum Processing ----------
-Spectral complexity: 0.011308812510864075
-Adaptive bandwidth: 0.744345593744568
-Retained fraction: 0.74609375
-Original normalized norm: 0.9999999999999999
-Reconstructed state norm: 0.9999999999999996
-Reconstructed field shape: (16, 16)
-Reconstructed field minimum: -0.0002902245456402888
-Reconstructed field maximum: 0.1569685404838594
-
----------- Navigation ----------
-Robot position: [2. 2.]
-Goal: [13. 13.]
-Quantum velocity: [0.51153638 0.85926162]
-Velocity magnitude: 1.0
 ```
 
 ---
@@ -412,7 +374,8 @@ Velocity magnitude: 1.0
 - [x] Inverse QFT quantum field reconstruction and relative $L_2$ error quantification (`quantum/reconstruction.py`).
 - [x] Quantum-guided continuous motion controller and velocity planning (`navigation/quantum_controller.py`).
 - [x] Step 8: Quantum navigation pipeline validation (`test_quantum_navigation.py`).
-- [x] Step 8B: Multi-agent quantum closed-loop rollout benchmarking against classical APF baseline (`test_quantum_multi_agent.py`).
+- [x] Step 8B: Multi-agent quantum closed-loop rollout benchmarking (`test_quantum_multi_agent.py`).
+- [x] Unified empirical benchmark harness comparing Classical APF vs. Quantum ASQF-NAV (`test_classical_vs_quantum.py`).
 - [ ] Multi-scenario batch benchmarking and automated logging across random obstacle densities in `experiment/` & `results/`.
 
 ---
