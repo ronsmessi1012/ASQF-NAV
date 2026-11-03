@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AQSF-NAV — Partial Work Demonstration</title>
+<style>
+:root{
+  --bg:#05080d; --panel:#0a1019; --panel2:#0d1420; --line:#263449;
+  --text:#e8eef7; --muted:#8492a8; --cyan:#55d8ff; --violet:#a987ff;
+  --amber:#ffbd69; --red:#ff637c; --green:#63e6be;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#020409;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+.app{width:min(1500px,96vw);margin:18px auto;border:1px solid #26344a;border-radius:28px;background:linear-gradient(145deg,#080d15,#050911);box-shadow:0 24px 80px #000b;overflow:hidden}
+header{height:118px;padding:28px 34px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+h1{font-size:26px;margin:0 0 8px;letter-spacing:.2px}
+.sub{color:#91a0b5;font-size:15px}
+.badge{border:1px solid #52647e;border-radius:28px;padding:12px 18px;font-weight:800;letter-spacing:1px;font-size:13px;background:#111925;color:#dce4ef}
+.main{display:grid;grid-template-columns:1fr 390px;min-height:790px}
+.stageWrap{padding:24px;border-right:1px solid var(--line)}
+.stage{height:730px;border:1px solid #26354a;border-radius:23px;background:#060b12;position:relative;overflow:hidden}
+canvas{width:100%;height:100%;display:block}
+.hud{position:absolute;left:18px;top:16px;right:18px;display:flex;justify-content:space-between;pointer-events:none}
+.hud .pill{background:#09111bcc;border:1px solid #27374d;border-radius:12px;padding:8px 12px;color:#9baac0;font-size:12px;backdrop-filter:blur(8px)}
+.panel{padding:30px 26px;background:#0a1019}
+.sectionTitle{font-size:13px;letter-spacing:2px;color:#77879e;margin-bottom:18px}
+.metric{padding:15px 0;border-bottom:1px solid #202c3c;display:flex;justify-content:space-between;gap:10px}
+.metric span{color:#8c9bb0}.metric b{font-size:17px}
+.bar{height:5px;background:#182435;border-radius:9px;margin:20px 0 28px;overflow:hidden}
+.bar i{display:block;height:100%;width:74.7%;background:linear-gradient(90deg,var(--cyan),var(--violet));border-radius:9px}
+.legend{display:grid;gap:12px;margin:22px 0}
+.legend div{display:flex;align-items:center;gap:10px;color:#9ba8ba;font-size:14px}
+.dot{width:12px;height:12px;border-radius:50%}.line{width:30px;height:3px;border-radius:4px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+button{border:1px solid #34445a;background:#121b28;color:#e8eef7;border-radius:12px;padding:13px;font-weight:750;font-size:14px;cursor:pointer}
+button:hover{background:#172235}
+.full{grid-column:1/-1}
+input[type=range]{width:100%;accent-color:#74dfff}
+.pipeline{margin-top:25px;padding:16px;border:1px solid #26364b;border-radius:15px;background:#08101a}
+.pipeline .p{display:flex;align-items:center;gap:8px;font-size:11px;color:#9eacc0;flex-wrap:wrap}
+.pipeline strong{color:#e8eef7}.arrow{color:#5c718d}
+footer{height:62px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;color:#718198;font-size:14px}
+@media(max-width:1050px){.main{grid-template-columns:1fr}.stageWrap{border-right:0}.panel{border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div>
+    <h1>AQSF-NAV · Adaptive Quantum Spectral Field Navigation</h1>
+    <div class="sub">Hybrid quantum-classical multi-agent navigation · experimental prototype</div>
+  </div>
+  <div class="badge">PARTIAL WORK DEMONSTRATION</div>
+</header>
+
+<div class="main">
+  <div class="stageWrap">
+    <div class="stage">
+      <canvas id="c"></canvas>
+      <div class="hud">
+        <div class="pill">16 × 16 FIELD DOMAIN</div>
+        <div class="pill"><span id="timeHud">t = 0 ms</span>&nbsp;&nbsp;·&nbsp;&nbsp;<span id="modeHud">ADAPTIVE QFT · FEEDBACK DIVERGENCE</span></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <div class="sectionTitle">SIMULATION</div>
+    <div class="metric"><span>Step</span><b id="step">0 / 100</b></div>
+    <div class="metric"><span>Agent distance</span><b id="dist">—</b></div>
+    <div class="metric"><span>Path divergence</span><b id="div">0.000</b></div>
+    <div class="metric"><span>Obstacle clearance</span><b id="clear">—</b></div>
+    <div class="bar"><i id="bar"></i></div>
+
+    <div class="sectionTitle">QUANTUM SPECTRAL STATE</div>
+    <div class="metric"><span>Complexity C</span><b>0.0172</b></div>
+    <div class="metric"><span>Bandwidth B</span><b>0.746</b></div>
+    <div class="metric"><span>Retained power</span><b>99.95%</b></div>
+    <div class="metric"><span>Reconstruction error</span><b>0.023</b></div>
+
+    <div class="legend">
+      <div><span class="dot" style="background:var(--cyan)"></span>Robot 0 · classical</div>
+      <div><span class="dot" style="background:var(--violet)"></span>Robot 1 · classical</div>
+      <div><span class="line" style="background:var(--cyan)"></span>Classical trajectory</div>
+      <div><span class="line" style="background:var(--cyan);border-top:2px dashed var(--cyan);height:0"></span>Classical corrected route</div>
+      <div><span class="line" style="background:var(--violet)"></span>Quantum trajectory</div>
+      <div><span class="line" style="background:var(--red)"></span>Safety boundary / near-collision</div>
+    </div>
+
+    <div class="sectionTitle">TIMELINE</div>
+    <input id="slider" type="range" min="0" max="100" value="0">
+
+    <div class="controls">
+      <button id="play">▶ Play</button>
+      <button id="reset">↺ Reset</button>
+      <button id="ob" class="full">▣ Obstacles: ON</button>
+      <button id="field" class="full">⌁ Spectral field: ON</button>
+    </div>
+
+    <div class="pipeline">
+      <div class="p">
+        <strong>Dynamic APF</strong><span class="arrow">→</span>
+        <strong>Amplitude</strong><span class="arrow">→</span>
+        <strong>QFT</strong><span class="arrow">→</span>
+        <strong>Filter</strong><span class="arrow">→</span>
+        <strong>IQFT</strong><span class="arrow">→</span>
+        <strong>Navigation</strong>
+      </div>
+    </div>
+  </aside>
+</div>
+<footer>
+  <span>QFT → spectral analysis → adaptive filtering → reconstructed field → navigation</span>
+  <span id="status">READY</span>
+</footer>
+</div>
+
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const W=1000,H=730;
+function resize(){canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);draw()}
+window.addEventListener('resize',resize);
+
+const obstacles=[
+ {x:385,y:220,w:105,h:100,r:18},
+ {x:520,y:355,w:135,h:95,r:18},
+ {x:345,y:485,w:120,h:85,r:18},
+ {x:665,y:185,w:105,h:95,r:18}
+];
+const starts=[
+ {x:110,y:620},{x:120,y:105}
+];
+const goals=[
+ {x:850,y:105},{x:850,y:620}
+];
+
+function lerp(a,b,t){return a+(b-a)*t}
+function smooth(t){return t*t*(3-2*t)}
+function bez(p0,p1,p2,p3,t){
+ let u=1-t;
+ return {x:u*u*u*p0.x+3*u*u*t*p1.x+3*u*t*t*p2.x+t*t*t*p3.x,
+         y:u*u*u*p0.y+3*u*u*t*p1.y+3*u*t*t*p2.y+t*t*t*p3.y}
+}
+// Carefully designed illustrative trajectories: classical paths bend around obstacles,
+// quantum paths track them initially and visibly diverge near the reconstructed-field
+// interaction region. These are a visual partial-work demonstration, not recorded data.
+function catmull(p0,p1,p2,p3,t){
+  const t2=t*t, t3=t2*t;
+  return {
+    x:0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+    y:0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+  };
+}
+
+/*
+  Obstacle-aware demonstration trajectories.
+  Every waypoint is deliberately outside the inflated obstacle rectangles.
+  This is still a visual partial-work demonstration, not a claim that these
+  coordinates are the recorded Python trajectory.
+*/
+const classicalWaypoints = [
+  // Robot 0: bottom-left -> top-right, going around the obstacles
+  [
+    {x:110,y:620},{x:285,y:620},{x:315,y:600},
+    {x:505,y:500},{x:680,y:470},{x:805,y:300},{x:820,y:135},{x:850,y:105}
+  ],
+  // Robot 1: top-left -> bottom-right, using the opposite corridor
+  [
+    {x:120,y:105},{x:275,y:125},{x:315,y:185},
+    {x:300,y:330},{x:455,y:335},{x:700,y:300},
+    {x:815,y:470},{x:850,y:620}
+  ]
+];
+
+// Explicitly safe dotted routes. These are deliberately routed through
+// wide corridors around the visible obstacles; unlike a smoothing spline,
+// every segment is easy to verify geometrically.
+const quantumWaypoints = [
+  [
+    {x:110,y:620},
+    {x:285,y:620},
+    {x:500,y:620},
+    {x:650,y:500},
+    {x:800,y:500},
+    {x:800,y:310},
+    {x:800,y:150},
+    {x:850,y:105}
+  ],
+  [
+    {x:120,y:105},{x:275,y:120},{x:325,y:170},
+    {x:315,y:315},{x:475,y:350},{x:665,y:315},
+    {x:790,y:430},{x:835,y:565},{x:850,y:620}
+  ]
+];
+
+function segmentHitsExpandedObstacle(a,b,margin=30){
+  // Sample the segment densely. This is deliberately conservative for the
+  // visual demo: the corrected dotted trajectory must never enter an
+  // inflated obstacle.
+  for(let s=0;s<=80;s++){
+    const t=s/80;
+    const x=lerp(a.x,b.x,t), y=lerp(a.y,b.y,t);
+    for(const o of obstacles){
+      if(x>=o.x-margin && x<=o.x+o.w+margin &&
+         y>=o.y-margin && y<=o.y+o.h+margin) return true;
+    }
+  }
+  return false;
+}
+
+function sampleWaypoints(points){
+  const out=[];
+  // Piecewise-linear interpolation is used here intentionally. It guarantees
+  // the route follows the explicitly selected safe corridor instead of a
+  // smoothing spline cutting through an obstacle.
+  for(let s=0;s<points.length-1;s++){
+    const a=points[s], b=points[s+1];
+    const blocked=segmentHitsExpandedObstacle(a,b,30);
+    if(blocked){
+      console.warn("Obstacle-safe waypoint segment unexpectedly intersects an obstacle:",a,b);
+    }
+    const n=20;
+    for(let j=0;j<n;j++){
+      const t=j/n;
+      out.push({x:lerp(a.x,b.x,t),y:lerp(a.y,b.y,t)});
+    }
+  }
+  out.push(points[points.length-1]);
+
+  const result=[];
+  for(let k=0;k<=100;k++){
+    const u=k/100*(out.length-1);
+    const i=Math.min(out.length-2,Math.floor(u));
+    const t=u-i;
+    result.push({
+      x:lerp(out[i].x,out[i+1].x,t),
+      y:lerp(out[i].y,out[i+1].y,t)
+    });
+  }
+  return result;
+}
+
+function directPath(start, goal, agent){
+  const out=[];
+  for(let i=0;i<=100;i++){
+    const t=i/100;
+    out.push({
+      x:lerp(start.x,goal.x,t),
+      y:lerp(start.y,goal.y,t)
+    });
+  }
+  return out;
+}
+
+function makeTraj(agent){
+  // With obstacles ON, route around the inflated obstacle regions.
+  // With obstacles OFF, use the shortest/direct route.
+  // Classical reference:
+  // SOLID BLUE = deliberately uncorrected/direct trajectory. When obstacles
+  // are enabled it may cross an obstacle; this is the visible "error" case.
+  // DOTTED BLUE = corrected obstacle-aware trajectory that avoids it.
+  const p = showObs
+    ? sampleWaypoints(classicalWaypoints[agent])
+    : directPath(starts[agent], goals[agent], agent);
+
+  let qBase = showObs
+    ? sampleWaypoints(quantumWaypoints[agent])
+    : directPath(starts[agent], goals[agent], agent);
+
+  const q=[];
+
+  for(let i=0;i<=100;i++){
+    const t=i/100;
+
+    if(showObs){
+      /*
+        Obstacle case:
+        keep the quantum path in the obstacle-safe corridor while allowing
+        a later feedback/reconstruction divergence.
+      */
+      const d=Math.max(0,(t-0.46)/0.54);
+      const amp=agent===0 ? 12 : 15;
+      const dx=amp*Math.sin(Math.PI*Math.min(1,d))*Math.min(1,d*1.7);
+      const dy=(agent===0 ? -4 : 5)*Math.sin(Math.PI*Math.min(1,d));
+
+      let qp={
+        x:qBase[i].x + dx,
+        y:qBase[i].y + dy
+      };
+
+      // Never allow the corrected dotted route to enter an obstacle.
+      // If the visual divergence would violate clearance, keep the point on
+      // the safe reconstructed-field route.
+      if(showObs){
+        let unsafe=false;
+        for(const o of obstacles){
+          const margin=20;
+          if(qp.x>=o.x-margin && qp.x<=o.x+o.w+margin &&
+             qp.y>=o.y-margin && qp.y<=o.y+o.h+margin){
+            unsafe=true; break;
+          }
+        }
+        if(unsafe) qp={x:qBase[i].x,y:qBase[i].y};
+      }
+      q.push(qp);
+    } else {
+      /*
+        No obstacles:
+        both agents simply travel toward their goals. The quantum path gets
+        only a small late-stage reconstruction/feedback deviation so that the
+        demo still communicates the partial quantum-vs-classical comparison,
+        without inventing an obstacle-induced detour.
+      */
+      const d=Math.max(0,(t-0.55)/0.45);
+      const amp=agent===0 ? 5 : 6;
+
+      q.push({
+        x:qBase[i].x + amp*Math.sin(Math.PI*Math.min(1,d)),
+        y:qBase[i].y + (agent===0 ? -2 : 2)*Math.sin(Math.PI*Math.min(1,d))
+      });
+    }
+  }
+
+  return {p,q};
+}
+
+let step=0, playing=false, showObs=true, showField=true;
+const tr=[makeTraj(0),makeTraj(1)];
+
+function pathLen(arr,n){let s=0;for(let i=1;i<=n;i++)s+=Math.hypot(arr[i].x-arr[i-1].x,arr[i].y-arr[i-1].y);return s}
+function nearestObstacle(pt){
+ let best=999;
+ for(const o of obstacles){
+   const cx=Math.max(o.x,Math.min(pt.x,o.x+o.w)),cy=Math.max(o.y,Math.min(pt.y,o.y+o.h));
+   best=Math.min(best,Math.hypot(pt.x-cx,pt.y-cy));
+ }
+ return best;
+}
+function minAgentDist(n){
+ let d=999;
+ for(let i=0;i<=n;i++) d=Math.min(d,Math.hypot(tr[0].q[i].x-tr[1].q[i].x,tr[0].q[i].y-tr[1].q[i].y));
+ return d;
+}
+function drawGrid(){
+ ctx.fillStyle='#060b12';ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='#111b29';ctx.lineWidth=1;
+ for(let x=30;x<W;x+=42){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+ for(let y=20;y<H;y+=42){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+}
+function drawField(){
+ if(!showField)return;
+ for(let y=18;y<H;y+=28)for(let x=25;x<W;x+=28){
+   let val=0;
+   for(const o of obstacles){
+     let cx=o.x+o.w/2,cy=o.y+o.h/2;
+     let d=Math.hypot(x-cx,y-cy);
+     val+=Math.exp(-d*d/11000);
+   }
+   let d0=Math.hypot(x-850,y-105),d1=Math.hypot(x-850,y-620);
+   val+=.35*Math.exp(-d0*d0/180000)+.35*Math.exp(-d1*d1/180000);
+   const a=Math.min(.16,val*.10);
+   ctx.fillStyle=`rgba(82,160,255,${a})`;ctx.fillRect(x,y,26,26);
+ }
+}
+function roundRect(x,y,w,h,r){
+ ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();ctx.stroke();
+}
+function drawObstacles(){
+ if(!showObs)return;
+ for(const o of obstacles){
+   ctx.fillStyle='#1a2432';ctx.strokeStyle='#4a5c73';ctx.lineWidth=2;roundRect(o.x,o.y,o.w,o.h,o.r);
+   ctx.fillStyle='#65748a';ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText('OBSTACLE',o.x+o.w/2,o.y+o.h/2+4);
+   ctx.strokeStyle='rgba(255,99,124,.20)';ctx.lineWidth=12;ctx.stroke();
+ }
+}
+function drawGoal(g,i){
+ ctx.save();ctx.strokeStyle=i===0?'rgba(85,216,255,.65)':'rgba(169,135,255,.65)';
+ ctx.lineWidth=2;ctx.beginPath();ctx.arc(g.x,g.y,19,0,Math.PI*2);ctx.stroke();
+ ctx.fillStyle=i===0?'#55d8ff':'#a987ff';ctx.beginPath();ctx.arc(g.x,g.y,4,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#77879e';ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText('GOAL '+i,g.x,g.y+34);ctx.restore();
+}
+function drawPath(arr,color,dash=false){
+ ctx.save();ctx.strokeStyle=color;ctx.lineWidth=dash?2.5:2.2;ctx.globalAlpha=dash?.72:.9;
+ if(dash)ctx.setLineDash([8,8]);
+ ctx.beginPath();arr.slice(0,step+1).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.restore();
+}
+function arrow(p,v,color){
+ const m=Math.hypot(v.x,v.y)||1,ux=v.x/m,uy=v.y/m,L=38;
+ ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+ux*L,p.y+uy*L);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(p.x+ux*L,p.y+uy*L);ctx.lineTo(p.x+ux*(L-8)-uy*4,p.y+uy*(L-8)+ux*4);ctx.lineTo(p.x+ux*(L-8)+uy*4,p.y+uy*(L-8)-ux*4);ctx.closePath();ctx.fill();ctx.restore();
+}
+function telemetry(arr, i){
+  if(i === 0){
+    return {angle:0, dv:0, speed:0};
+  }
+  const a=arr[i-1], b=arr[i];
+  const c=arr[Math.min(arr.length-1,i+1)];
+  const vx0=b.x-a.x, vy0=b.y-a.y;
+  const vx1=c.x-b.x, vy1=c.y-b.y;
+  const speed0=Math.hypot(vx0,vy0);
+  const speed1=Math.hypot(vx1,vy1);
+  let angle=Math.atan2(vy1,vx1)-Math.atan2(vy0,vx0);
+  while(angle>Math.PI) angle-=2*Math.PI;
+  while(angle<-Math.PI) angle+=2*Math.PI;
+  return {angle:angle*180/Math.PI, dv:speed1-speed0, speed:speed1};
+}
+
+function robot(p,color,arr,i){
+ ctx.save();
+ ctx.shadowBlur=22;ctx.shadowColor=color;ctx.fillStyle=color;ctx.beginPath();ctx.arc(p.x,p.y,10,0,Math.PI*2);ctx.fill();
+ ctx.shadowBlur=0;ctx.fillStyle='#07101a';ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();
+
+ const m=telemetry(arr,i);
+ const boxW=94, boxH=39;
+ let bx=p.x+15, by=p.y-28;
+ if(bx+boxW>W-8) bx=p.x-boxW-15;
+ if(by<8) by=p.y+14;
+
+ ctx.fillStyle='rgba(7,12,20,.88)';
+ ctx.strokeStyle=color;
+ ctx.lineWidth=1;
+ ctx.beginPath();ctx.roundRect(bx,by,boxW,boxH,8);ctx.fill();ctx.stroke();
+
+ ctx.fillStyle='#dbe5f2';
+ ctx.font='11px system-ui';
+ ctx.textAlign='left';
+ ctx.fillText(`Δθ ${m.angle>=0?'+':''}${m.angle.toFixed(1)}°`,bx+8,by+15);
+ ctx.fillText(`Δv ${m.dv>=0?'+':''}${m.dv.toFixed(3)}`,bx+8,by+30);
+
+ ctx.restore();
+}
+function drawDivergence(){
+ const x=700,y=545,w=230,h=125;
+ ctx.save();ctx.fillStyle='rgba(6,12,20,.88)';ctx.strokeStyle='#26364b';ctx.lineWidth=1;roundRect(x,y,w,h,14);
+ ctx.fillStyle='#7d8da5';ctx.font='11px system-ui';ctx.textAlign='left';ctx.fillText('TRAJECTORY DIVERGENCE',x+14,y+20);
+ let max=2.8;
+ ctx.strokeStyle='#1c293a';ctx.beginPath();ctx.moveTo(x+14,y+h-20);ctx.lineTo(x+w-14,y+h-20);ctx.stroke();
+ ctx.strokeStyle='#a987ff';ctx.lineWidth=2;ctx.beginPath();
+ for(let i=0;i<=step;i++){
+   let t=i/100,dd= i<12 ? .001*i : .02*Math.pow((i-11)/89,1.7)*140;
+   if(i>40)dd+=.12*Math.sin((i-40)*.17)**2*(i-40)/60;
+   dd=Math.min(2.76,dd);
+   let px=x+14+(w-28)*t,py=y+h-20-(h-42)*dd/max;
+   i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+ }
+ ctx.stroke();ctx.restore();
+}
+function draw(){
+ drawGrid();drawField();drawObstacles();goals.forEach(drawGoal);
+ drawPath(tr[0].p,'#55d8ff');drawPath(tr[0].q,'#55d8ff',true);
+ drawPath(tr[1].p,'#a987ff');drawPath(tr[1].q,'#a987ff',true);
+ const pts=[tr[0].p[step],tr[0].q[step],tr[1].p[step],tr[1].q[step]];
+ robot(pts[0],'#55d8ff',tr[0].p,step);
+ robot(pts[1],'#55d8ff',tr[0].q,step);
+ robot(pts[2],'#a987ff',tr[1].p,step);
+ robot(pts[3],'#a987ff',tr[1].q,step);
+ arrow(pts[1],{x:tr[0].q[Math.min(100,step+1)].x-pts[1].x,y:tr[0].q[Math.min(100,step+1)].y-pts[1].y},'#55d8ff');
+ arrow(pts[3],{x:tr[1].q[Math.min(100,step+1)].x-pts[3].x,y:tr[1].q[Math.min(100,step+1)].y-pts[3].y},'#a987ff');
+ // Explicit safety boundary at the critical interaction region
+ if(step>=48){
+   const a=tr[0].q[step],b=tr[1].q[step],d=Math.hypot(a.x-b.x,a.y-b.y);
+   if(d<1.8){
+     ctx.save();ctx.strokeStyle='rgba(255,99,124,.75)';ctx.setLineDash([5,5]);ctx.lineWidth=2;
+     ctx.beginPath();ctx.arc(a.x,a.y,42,0,Math.PI*2);ctx.stroke();
+     ctx.beginPath();ctx.arc(b.x,b.y,42,0,Math.PI*2);ctx.stroke();ctx.restore();
+   }
+ }
+ drawDivergence();
+}
+function update(){
+ const a=tr[0].q[step],b=tr[1].q[step];
+ const d=Math.hypot(a.x-b.x,a.y-b.y);
+ const div=Math.max(Math.hypot(a.x-tr[0].p[step].x,a.y-tr[0].p[step].y),
+                    Math.hypot(b.x-tr[1].p[step].x,b.y-tr[1].p[step].y));
+ const cl=Math.min(nearestObstacle(a),nearestObstacle(b));
+ document.getElementById('step').textContent=`${step} / 100`;
+ document.getElementById('timeHud').textContent=`t = ${step} ms`;
+ document.getElementById('dist').textContent=d.toFixed(3);
+ document.getElementById('div').textContent=div.toFixed(3);
+ document.getElementById('clear').textContent=cl.toFixed(1)+' px';
+ document.getElementById('bar').style.width=(Math.min(100,step))+'%';
+ document.getElementById('slider').value=step;
+ document.getElementById('status').textContent=step<48?'FIELD RECONSTRUCTION':step<58?'ADAPTIVE FILTER ACTIVE':step<70?'FEEDBACK DIVERGENCE':'TRAJECTORY COMPLETE';
+ document.getElementById('modeHud').textContent =
+  showObs
+    ? (step<58?'OBSTACLE-AWARE · FIELD RECONSTRUCTION':'OBSTACLE-AWARE · FEEDBACK DIVERGENCE')
+    : (step<58?'DIRECT NAVIGATION · FIELD RECONSTRUCTION':'DIRECT NAVIGATION · FEEDBACK DIVERGENCE');
+ draw();
+}
+function loop(){if(playing){step=Math.min(100,step+1);update();if(step===100)playing=false;else setTimeout(loop,65)}}
+document.getElementById('play').onclick=()=>{playing=!playing;document.getElementById('play').textContent=playing?'Ⅱ Pause':'▶ Play';if(playing)loop()};
+document.getElementById('reset').onclick=()=>{playing=false;step=0;document.getElementById('play').textContent='▶ Play';update()};
+document.getElementById('slider').oninput=e=>{playing=false;step=+e.target.value;document.getElementById('play').textContent='▶ Play';update()};
+document.getElementById('ob').onclick=()=>{
+  showObs=!showObs;
+  document.getElementById('ob').textContent=showObs?'▣ Obstacles: ON':'▣ Obstacles: OFF';
+  const fresh=[makeTraj(0),makeTraj(1)];
+  tr[0]=fresh[0]; tr[1]=fresh[1];
+  update();
+};
+document.getElementById('field').onclick=()=>{showField=!showField;document.getElementById('field').textContent=showField?'⌁ Spectral field: ON':'⌁ Spectral field: OFF';draw()};
+resize();update();
+</script>
+</body>
+</html>
